@@ -1,14 +1,19 @@
 ---
 title: Introduction
-description: Better integration for Zod and MongoDB.
+description: A tiny Zod-first persistence layer for MongoDB.
 ---
 
-Zog is a library package for keeping validation and persistence contracts close together.
+Zog gives Zod-first TypeScript applications a reliable storage boundary without adopting an ORM programming model.
 
-## What belongs here
+It keeps MongoDB close to the official driver while handling repeated invariants that are easy to get wrong by hand:
 
-Use these docs for API references, schema conventions, MongoDB integration notes, and migration guidance as the package takes shape.
+- map domain primary keys such as `id` to MongoDB `_id`
+- prevent accidental generated ObjectIds for app-owned records
+- parse writes through a Zod-like schema before storage
+- parse reads through a Zod-like schema before returning domain records
+- keep model metadata and index declarations near the collection definition
+- expose the raw MongoDB collection when native driver behavior is needed
 
 ## Package
 
-The workspace package is `@mp-lb/zog-zog`.
+The workspace package is `@mp-lb/zog`.

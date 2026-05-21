@@ -1,0 +1,233 @@
+---
+title: Feature Backlog
+description: The roadmap and non-goals for keeping Zog useful without turning it into an ORM.
+---
+
+Zog should provide ORM-grade reliability for storage invariants without adopting
+an ORM programming model.
+
+The rule of thumb:
+
+- automate policies that are mechanical, cross-cutting, and easy to forget
+- keep business behavior explicit in application services
+- stay close to the MongoDB driver
+- keep Zod as the schema source of truth
+
+## Near-Term
+
+### Index Diff And Sync
+
+Current support creates declared indexes with `ensureIndexes()`. The next step
+is visibility and controlled reconciliation.
+
+- `diffIndexes()` compares declared indexes with actual collection indexes.
+- `ensureIndexes()` remains additive and safe.
+- `syncIndexes()` is opt-in and can drop undeclared indexes.
+- Dry-run output is available before destructive changes.
+- Stable names are strongly encouraged for managed indexes.
+
+This closes the main operational gap without introducing ORM concepts.
+
+### Timestamps
+
+Timestamps are the clearest example of a useful hidden invariant. They are easy
+to forget, often not obvious in manual testing, and should be consistent.
+
+Possible API:
+
+```ts
+createModel("jobs", jobSchema, {
+  primaryKey: "id",
+  timestamps: {
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    now: () => new Date().toISOString(),
+  },
+});
+```
+
+Design notes:
+
+- do not assume BSON `Date` versus ISO strings
+- set both fields on inserts
+- update `updatedAt` on replacements and update helpers
+- keep raw collection operations untouched
+- make behavior easy to test and document
+
+### Transaction And Session Support
+
+MongoDB sessions matter more than ORM-style unit of work for this library.
+
+Possible API:
+
+```ts
+await db.transaction(async (tx) => {
+  await tx.jobs.updateById(jobId, patch);
+  await tx.usageCounters.updateOne(filter, update);
+});
+```
+
+Design notes:
+
+- expose driver-native sessions where needed
+- make repository calls accept/pass sessions cleanly
+- avoid implicit global transaction state
+- keep transaction boundaries explicit at the service layer
+
+### Better Update Safety
+
+Updates are the easiest place to bypass schema guarantees.
+
+Ideas:
+
+- keep rejecting primary-key changes
+- validate replacement documents through Zod
+- provide safer helpers for common `$set` updates
+- consider validating the post-update document in helper methods that fetch it
+- document when raw MongoDB update operators bypass full schema validation
+
+This should improve safety without pretending Zog can deeply type every MongoDB
+update expression.
+
+## Medium-Term
+
+### Optimistic Concurrency
+
+Some records need protection against lost updates without requiring a larger
+ORM runtime.
+
+Possible API:
+
+```ts
+createModel("stores", storeSchema, {
+  primaryKey: "id",
+  version: {
+    field: "version",
+  },
+});
+```
+
+or an `updatedAt`-based variant.
+
+Design notes:
+
+- require callers to provide the expected version for guarded writes
+- increment or update the version field mechanically
+- make conflicts explicit errors
+- do not introduce in-memory change tracking
+
+### Soft Delete Conventions
+
+Soft deletes are another policy that is easy to apply inconsistently.
+
+Possible API:
+
+```ts
+createModel("jobs", jobSchema, {
+  primaryKey: "id",
+  softDelete: {
+    field: "deletedAt",
+    now: () => new Date().toISOString(),
+  },
+});
+```
+
+Open questions:
+
+- should default reads exclude soft-deleted records?
+- should the default be opt-in per query instead?
+- how should unique partial indexes be encouraged for soft-deleted records?
+
+This feature is useful but risks hiding query behavior, so it needs a careful
+design.
+
+### Storage Boundary Hooks
+
+Hooks can be useful, but arbitrary lifecycle hooks can become hidden business
+logic. If Zog supports hooks, they should be narrow and storage-oriented.
+
+Possible hook categories:
+
+- normalize before parse on reads
+- transform before parse on writes
+- inspect parsed documents after reads/writes
+- observe operations for logging or metrics
+
+Avoid:
+
+- cascading writes
+- enqueueing jobs
+- cross-collection business workflows
+- Mongoose-style lifecycle sprawl
+
+Existing `normalizeLegacy` and `beforeEnsureIndexes` are examples of narrow
+hooks that fit the library.
+
+### Model-Level Defaults
+
+Zod already supports defaults, so this may not need much from Zog.
+
+Potential work:
+
+- document how Zod defaults behave on insert and replacement
+- ensure helper methods parse inputs before storage so defaults are applied
+- avoid creating a second default system unless there is a clear gap
+
+## Later / Maybe
+
+### CLI
+
+A small CLI could make index and model operations easier in applications.
+
+Possible commands:
+
+```sh
+zog indexes diff
+zog indexes ensure
+zog indexes sync --dry-run
+```
+
+This should wait until the programmatic APIs are stable.
+
+### Schema Inspection
+
+Zog might expose model metadata for documentation, admin tools, or tests.
+
+Examples:
+
+- list model names and collections
+- list declared indexes
+- produce a storage-boundary report
+
+This should stay descriptive, not become a migration framework by accident.
+
+### Query Helpers
+
+Small query helpers may be useful if repeated patterns emerge.
+
+Examples:
+
+- pagination helpers
+- `findActive` for soft-delete models
+- common sort/page shapes
+
+These should be added only when real applications repeat the same code often.
+
+## Non-Goals
+
+These features would likely mean Zog has become an ORM rather than a storage
+boundary layer:
+
+- entity classes
+- decorators as the primary model definition mechanism
+- identity map
+- unit of work
+- lazy loading
+- automatic relationship population
+- cascading persistence
+- relation metadata and graph traversal
+- broad query builder abstraction
+- generated clients
+
+If we decide we want those features, we should seriously consider Mongoose,
+MikroORM, or Prisma instead of growing Zog in that direction.
