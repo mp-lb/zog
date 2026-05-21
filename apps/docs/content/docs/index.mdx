@@ -3,68 +3,13 @@ title: Quick Start
 description: Define a model, create a database adapter, and read/write MongoDB records through Zog.
 ---
 
-This guide is for trying Zog from another local project before publishing it
-to npm.
-
-## 1. Build or Watch Zog
-
-From this repository:
+Install Zog with Zod and the MongoDB driver:
 
 ```sh
-pnpm install
-pnpm dev
+pnpm add @mp-lb/zog zod mongodb
 ```
 
-`pnpm dev` keeps `dist/` updated while you edit the library. Leave it
-running in one terminal.
-
-For a one-time build instead:
-
-```sh
-pnpm build
-```
-
-## 2. Link It Locally
-
-From this repository:
-
-```sh
-pnpm link --global
-```
-
-From the project where you want to test Zog:
-
-```sh
-pnpm link --global @mp-lb/zog
-```
-
-That project also needs Zod and the MongoDB driver installed:
-
-```sh
-pnpm add zod mongodb
-```
-
-If you prefer not to use global links, install the local folder directly
-from the test project:
-
-```sh
-pnpm add /Users/felixsebastian/Code/zog/packages/zog
-```
-
-When using direct local install, run `pnpm build` in this repository again
-after library changes.
-
-For an editable local dependency without the global link step, use the `link:`
-protocol from the test project:
-
-```sh
-pnpm add @mp-lb/zog@link:/Users/felixsebastian/Code/zog/packages/zog
-```
-
-With either `pnpm link --global` or `link:`, keep `pnpm dev` running in this
-repository so the test project sees fresh `dist/` output.
-
-## 3. Define A Model
+## 1. Define A Model
 
 ```ts
 import { MongoClient } from "mongodb";
@@ -88,9 +33,7 @@ const userModel = createModel("users", userSchema, {
 ```
 
 `createModel` accepts any schema-like object with a synchronous `parse()`
-method. It does not require Zog and the consuming project to resolve the same
-physical Zod package, which keeps local `pnpm link` and `link:` workflows from
-breaking schema types.
+method.
 
 Transformed schemas are supported. Repository reads return the parsed output
 type, and `primaryKey` is checked against that parsed output:
@@ -131,7 +74,7 @@ const fileModel = createModel("files", fileSchema, {
 });
 ```
 
-## 4. Create The Database Adapter
+## 2. Create The Database Adapter
 
 ```ts
 const mongoClient = new MongoClient(process.env.MONGODB_URI!);
@@ -165,7 +108,7 @@ declared indexes, and drops undeclared extra indexes by default. Use
 `{ dropExtra: false }` to keep extra indexes while still fixing changed declared
 indexes.
 
-## 5. Read And Write
+## 3. Read And Write
 
 ```ts
 const now = new Date().toISOString();
@@ -225,17 +168,3 @@ primary key:
 Mongo will not generate an accidental ObjectId for records written through
 Zog. On reads, Zog maps `_id` back to the configured domain primary key before
 parsing through the schema.
-
-## 6. Unlink When Done
-
-From the test project:
-
-```sh
-pnpm remove @mp-lb/zog
-```
-
-From this repository:
-
-```sh
-pnpm unlink --global
-```

@@ -1,4 +1,4 @@
-import type { Route } from './+types/docs';
+import type { Route } from './+types/index';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import {
   DocsBody,
@@ -15,9 +15,8 @@ import { gitConfig } from '@/lib/shared';
 import { useFumadocsLoader } from 'fumadocs-core/source/client';
 import { useMDXComponents } from '@/components/mdx';
 
-export async function loader({ params }: Route.LoaderArgs) {
-  const slugs = (params['*'] ?? '').split('/').filter((v) => v.length > 0);
-  const page = source.getPage(slugs);
+export async function loader({}: Route.LoaderArgs) {
+  const page = source.getPage([]);
   if (!page) throw new Response('Not found', { status: 404 });
 
   return {
@@ -30,7 +29,6 @@ export async function loader({ params }: Route.LoaderArgs) {
 const clientLoader = browserCollections.docs.createClientLoader({
   component(
     { toc, frontmatter, default: Mdx },
-    // you can define props for the component
     {
       markdownUrl,
       path,
@@ -48,7 +46,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
         <div className="flex flex-row gap-2 items-center border-b -mt-4 pb-6">
           <MarkdownCopyButton markdownUrl={markdownUrl} />
           <ViewOptionsPopover
-            markdownUrl={markdownUrl}
+            markdownUrl={`/${markdownUrl.replace(/^\/+/, '')}`}
             githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/content/docs/${path}`}
           />
         </div>
