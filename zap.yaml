@@ -2,7 +2,7 @@ project: zog
 env_files:
   - .env.local
   - .env
-homepage: http://localhost:${DOCS_PORT}
+homepage: http://localhost:${DOCS_PORT}/docs
 ports:
   - DOCS_PORT
 native:
