@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import defaultMdxComponents from "fumadocs-ui/mdx";
@@ -9,28 +9,53 @@ import {
   DocsTitle,
 } from "fumadocs-ui/page";
 import { RootProvider } from "fumadocs-ui/provider/base";
-import { source } from "./lib/source.js";
+import { getPage, loadPage, pageTree, type MdxPageModule } from "./lib/docs.js";
 import "./styles/app.css";
 
-const currentPath = window.location.pathname.replace(/\/$/, "");
-const selectedPage =
-  source.getPage(
-    currentPath.startsWith("/docs")
-      ? currentPath.slice("/docs".length).split("/").filter(Boolean)
-      : [],
-  ) ?? source.getPage([]);
+function App() {
+  const selectedPage = getPage(window.location.pathname) ?? getPage("/docs");
+  const [loadedPage, setLoadedPage] = useState<MdxPageModule | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
-if (!selectedPage) {
-  throw new Error("No documentation pages were found.");
-}
+  useEffect(() => {
+    let ignore = false;
 
-const MDX = selectedPage.data.body;
+    if (!selectedPage) return;
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+    setLoadedPage(null);
+    setError(null);
+    loadPage(selectedPage)
+      .then((page) => {
+        if (!ignore) setLoadedPage(page);
+      })
+      .catch((cause: unknown) => {
+        if (!ignore) {
+          setError(cause instanceof Error ? cause : new Error(String(cause)));
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPage]);
+
+  if (!selectedPage) {
+    return <p>Page not found.</p>;
+  }
+
+  if (error) {
+    return <p>{error.message}</p>;
+  }
+
+  const MDX = loadedPage?.default;
+  const title = loadedPage?.frontmatter?.title ?? selectedPage.title;
+  const description =
+    loadedPage?.frontmatter?.description ?? selectedPage.description;
+
+  return (
     <RootProvider search={{ enabled: false }}>
       <DocsLayout
-        tree={source.pageTree}
+        tree={pageTree}
         nav={{
           title: (
             <>
@@ -40,16 +65,20 @@ createRoot(document.getElementById("root")!).render(
           ),
         }}
       >
-        <DocsPage toc={selectedPage.data.toc}>
-          <DocsTitle>{selectedPage.data.title}</DocsTitle>
-          {selectedPage.data.description ? (
-            <DocsDescription>{selectedPage.data.description}</DocsDescription>
-          ) : null}
+        <DocsPage toc={loadedPage?.toc ?? []}>
+          <DocsTitle>{title}</DocsTitle>
+          <DocsDescription>{description}</DocsDescription>
           <DocsBody>
-            <MDX components={{ ...defaultMdxComponents }} />
+            {MDX ? <MDX components={{ ...defaultMdxComponents }} /> : null}
           </DocsBody>
         </DocsPage>
       </DocsLayout>
     </RootProvider>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
   </StrictMode>,
 );
