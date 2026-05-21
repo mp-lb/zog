@@ -1,0 +1,19 @@
+{
+  "extends": "../../etc/tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "noEmit": true,
+    "paths": {
+      "collections/*": ["./.source/*.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "source.config.ts",
+    ".source/**/*.ts"
+  ]
+}

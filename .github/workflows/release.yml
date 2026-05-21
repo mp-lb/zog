@@ -1,0 +1,79 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]' }}
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect pending changesets
+        id: changesets
+        shell: bash
+        run: |
+          count=$(find .changeset -maxdepth 1 -type f -name "*.md" ! -name "README.md" | wc -l | tr -d " ")
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Set up pnpm
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org/"
+
+      - name: Install dependencies
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply Changesets version
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        run: pnpm changeset version
+
+      - name: Verify
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        run: |
+          pnpm typecheck
+          pnpm test
+          pnpm build
+
+      - name: Commit version changes
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .changeset pnpm-lock.yaml packages/*/package.json packages/*/CHANGELOG.md
+          git commit -m "chore: release packages [skip ci]"
+
+      - name: Publish
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        run: pnpm changeset publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Push release commit and tags
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        run: git push origin "HEAD:${GITHUB_REF_NAME}" --follow-tags

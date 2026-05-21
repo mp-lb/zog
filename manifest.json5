@@ -1,0 +1,13 @@
+{
+  name: 'Zog',
+  emoji: '🐸',
+  description: 'Better integration for Zod and MongoDB',
+  projectSlug: 'zog',
+  packagePrefix: '@mp-lb',
+  shadcnPreset: 'b1VlIttI',
+  frontends: [],
+  backends: [],
+  clis: [],
+  libs: ['zog'],
+  extensions: []
+}

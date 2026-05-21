@@ -2,9 +2,23 @@
 
 Zog is a tiny Zod-first persistence layer for MongoDB.
 
-It keeps application models in terms of `id`, stores that key canonically as
-Mongo `_id`, and parses every read and write through Zod at the storage
-boundary. The repository API stays close to the MongoDB collection API and
-exposes `raw` for operations that should bypass Zog.
+This repository is a pnpm workspace containing the publishable Zog library and
+a Fumadocs-powered documentation site.
 
-See [docs/quick-start.md](docs/quick-start.md) for local usage.
+## Projects
+
+- `packages/core`: shared runtime-safe constants and helpers.
+- `packages/server`: Node/server helpers.
+- `packages/trpc`: placeholder API contract package.
+- `packages/zog`: publishable `@mp-lb/zog` library package.
+- `apps/docs`: Fumadocs MDX documentation website.
+
+## Commands
+
+```bash
+pnpm install
+pnpm test
+pnpm typecheck
+pnpm build
+zap up
+```
