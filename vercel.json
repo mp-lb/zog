@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm --filter @mp-lb/zog-docs build",
+  "outputDirectory": "apps/docs/build/client",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/__spa-fallback.html"
+    }
+  ]
+}
