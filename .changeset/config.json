@@ -7,10 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": [
-    "@example/fss-shell-core",
-    "@example/fss-shell-server",
-    "@example/fss-shell-trpc",
-    "@example/fss-shell-example-backend"
-  ]
+  "ignore": []
 }
