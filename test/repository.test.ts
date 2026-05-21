@@ -296,6 +296,154 @@ describe("Zog repository", () => {
     ]);
   });
 
+  it("diffs declared indexes against collection indexes", async () => {
+    const model = createModel("stores", userSchema, {
+      primaryKey: "id",
+      indexes: [
+        uniqueIndex({ email: 1 }, { name: "email_1" }),
+        index({ createdAt: -1 }, { name: "createdAt_-1" }),
+        index({ email: 1, updatedAt: -1 }),
+      ],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("stores").existingIndexes.push(
+      {
+        key: { email: 1 },
+        name: "email_1",
+        unique: true,
+        v: 2,
+      },
+      {
+        key: { email: 1, updatedAt: 1 },
+        name: "email_1_updatedAt_-1",
+      },
+      {
+        key: { name: 1 },
+        name: "legacy_name_1",
+      },
+    );
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    const diff = await db.diffIndexes();
+
+    expect(diff.models).toHaveLength(1);
+    expect(diff.models[0]).toMatchObject({
+      modelName: "stores",
+      collectionName: "stores",
+      matching: [{ name: "email_1" }],
+      missing: [{ name: "createdAt_-1" }],
+      changed: [{ name: "email_1_updatedAt_-1" }],
+      extra: [{ name: "legacy_name_1" }],
+    });
+  });
+
+  it("dry-runs index sync without dropping or creating indexes", async () => {
+    const model = createModel("stores", userSchema, {
+      primaryKey: "id",
+      indexes: [index({ email: 1 }, { name: "email_1" })],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("stores").existingIndexes.push({
+      key: { name: 1 },
+      name: "legacy_name_1",
+    });
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    const diff = await db.syncIndexes({ dryRun: true });
+
+    expect(diff.models[0]).toMatchObject({
+      missing: [{ name: "email_1" }],
+      extra: [{ name: "legacy_name_1" }],
+    });
+    expect(fake.collection("stores").createdIndexes).toEqual([]);
+    expect(fake.collection("stores").droppedIndexes).toEqual([]);
+  });
+
+  it("syncs indexes by dropping changed and extra indexes before creating declared indexes", async () => {
+    const model = createModel("stores", userSchema, {
+      primaryKey: "id",
+      indexes: [
+        index({ email: 1 }, { name: "email_1" }),
+        index({ createdAt: -1 }, { name: "createdAt_-1" }),
+      ],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("stores").existingIndexes.push(
+      {
+        key: { email: -1 },
+        name: "email_1",
+      },
+      {
+        key: { name: 1 },
+        name: "legacy_name_1",
+      },
+    );
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    const diff = await db.syncIndexes();
+
+    expect(diff.models[0]).toMatchObject({
+      missing: [{ name: "createdAt_-1" }],
+      changed: [{ name: "email_1" }],
+      extra: [{ name: "legacy_name_1" }],
+    });
+    expect(fake.collection("stores").droppedIndexes).toEqual([
+      "email_1",
+      "legacy_name_1",
+    ]);
+    expect(fake.collection("stores").createdIndexes).toEqual([
+      {
+        key: { createdAt: -1 },
+        name: "createdAt_-1",
+      },
+      {
+        key: { email: 1 },
+        name: "email_1",
+      },
+    ]);
+  });
+
+  it("can leave extra indexes alone while syncing changed declared indexes", async () => {
+    const model = createModel("stores", userSchema, {
+      primaryKey: "id",
+      indexes: [index({ email: 1 }, { name: "email_1" })],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("stores").existingIndexes.push(
+      {
+        key: { email: -1 },
+        name: "email_1",
+      },
+      {
+        key: { name: 1 },
+        name: "legacy_name_1",
+      },
+    );
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.syncIndexes({ dropExtra: false });
+
+    expect(fake.collection("stores").droppedIndexes).toEqual(["email_1"]);
+    expect(fake.collection("stores").createdIndexes).toEqual([
+      {
+        key: { email: 1 },
+        name: "email_1",
+      },
+    ]);
+  });
+
   it("preserves literal model names in defineDb", () => {
     const storeSchema = z.object({
       id: z.string(),
@@ -441,6 +589,13 @@ class FakeCollection {
   readonly documents = new Map<string, Document>();
   readonly createdIndexes: Document[] = [];
   readonly droppedIndexes: string[] = [];
+  readonly existingIndexes: Document[] = [
+    {
+      key: { _id: 1 },
+      name: "_id_",
+      v: 2,
+    },
+  ];
   readonly lastFilters: Document[] = [];
 
   async findOne(filter: Document): Promise<Document | null> {
@@ -527,12 +682,36 @@ class FakeCollection {
 
   async createIndexes(indexes: Document[]): Promise<string[]> {
     this.createdIndexes.push(...indexes);
-    return indexes.map((value, index) => String(value.name ?? index));
+    for (const index of indexes) {
+      const name = String(index.name ?? defaultFakeIndexName(index.key));
+      const existingIndex = this.existingIndexes.findIndex(
+        (value) => value.name === name,
+      );
+      const storedIndex = {
+        ...index,
+        name,
+      };
+
+      if (existingIndex >= 0) {
+        this.existingIndexes[existingIndex] = storedIndex;
+      } else {
+        this.existingIndexes.push(storedIndex);
+      }
+    }
+    return indexes.map((value) => String(value.name ?? defaultFakeIndexName(value.key)));
   }
 
   async dropIndex(name: string): Promise<Document> {
     this.droppedIndexes.push(name);
+    const existingIndex = this.existingIndexes.findIndex((value) => value.name === name);
+    if (existingIndex >= 0) {
+      this.existingIndexes.splice(existingIndex, 1);
+    }
     return { ok: 1 };
+  }
+
+  listIndexes(): FakeCursor {
+    return new FakeCursor([...this.existingIndexes]);
   }
 
   private findMatching(filter: Document): Document[] {
@@ -604,4 +783,14 @@ function applyFakeUpdate(document: Document, update: Document): void {
   if (set && typeof set === "object" && !Array.isArray(set)) {
     Object.assign(document, set);
   }
+}
+
+function defaultFakeIndexName(key: unknown): string {
+  if (typeof key !== "object" || key === null || Array.isArray(key)) {
+    return "";
+  }
+
+  return Object.entries(key)
+    .map(([field, direction]) => `${field}_${String(direction)}`)
+    .join("_");
 }

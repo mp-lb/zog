@@ -6,7 +6,9 @@ export type ZogOperation =
   | "replace"
   | "updateById"
   | "deleteById"
-  | "ensureIndexes";
+  | "ensureIndexes"
+  | "diffIndexes"
+  | "syncIndexes";
 
 export type ZogErrorContext = {
   modelName: string;

@@ -29,7 +29,14 @@ import {
   type UpdateResult,
 } from "mongodb";
 import { ZogError, type ZogOperation } from "./error.js";
-import { toIndexDescription } from "./indexes.js";
+import {
+  indexSpecsMatch,
+  toDeclaredIndex,
+  toIndexDescription,
+  type DbIndexDiff,
+  type ExistingIndex,
+  type ModelIndexDiff,
+} from "./indexes.js";
 import type {
   AnyModelDefinition,
   InferModel,
@@ -487,6 +494,139 @@ export async function ensureModelIndexes<Model extends AnyModelDefinition>(
   }
 }
 
+export async function diffModelIndexes<Model extends AnyModelDefinition>(
+  db: Db,
+  model: Model,
+): Promise<ModelIndexDiff> {
+  const collection = db.collection(model.collectionName);
+
+  try {
+    const existingIndexes = await collection.listIndexes().toArray();
+    return diffIndexDescriptions(
+      model.name,
+      model.collectionName,
+      model.indexes.map(toDeclaredIndex),
+      existingIndexes,
+    );
+  } catch (cause) {
+    throw new ZogError({
+      modelName: model.name,
+      collectionName: model.collectionName,
+      operation: "diffIndexes",
+      cause,
+    });
+  }
+}
+
+export type SyncIndexesOptions = {
+  dryRun?: boolean;
+  dropExtra?: boolean;
+};
+
+export async function syncModelIndexes<Model extends AnyModelDefinition>(
+  db: Db,
+  model: Model,
+  options: SyncIndexesOptions = {},
+): Promise<ModelIndexDiff> {
+  const collection = db.collection(model.collectionName);
+  const dryRun = options.dryRun ?? false;
+  const dropExtra = options.dropExtra ?? true;
+
+  try {
+    if (dryRun) {
+      return await diffModelIndexes(db, model);
+    }
+
+    await model.beforeEnsureIndexes?.(collection);
+    const diff = await diffModelIndexes(db, model);
+    const indexesToDrop = dropExtra
+      ? [...diff.changed, ...diff.extra]
+      : diff.changed;
+
+    for (const indexToDrop of indexesToDrop) {
+      await collection.dropIndex(indexToDrop.name);
+    }
+
+    const indexesToCreate = [
+      ...diff.missing.map((entry) => entry.description),
+      ...diff.changed.map((entry) => entry.declared),
+    ];
+
+    if (indexesToCreate.length > 0) {
+      await collection.createIndexes(indexesToCreate);
+    }
+
+    return diff;
+  } catch (cause) {
+    throw new ZogError({
+      modelName: model.name,
+      collectionName: model.collectionName,
+      operation: "syncIndexes",
+      cause,
+    });
+  }
+}
+
+function diffIndexDescriptions(
+  modelName: string,
+  collectionName: string,
+  declaredIndexes: ReturnType<typeof toDeclaredIndex>[],
+  existingIndexes: Document[],
+): ModelIndexDiff {
+  const existingByName = new Map(
+    existingIndexes
+      .map((description) => toExistingIndex(description))
+      .filter((description) => description.name !== "_id_")
+      .map((description) => [description.name, description] as const),
+  );
+  const matching: ReturnType<typeof toDeclaredIndex>[] = [];
+  const missing: ReturnType<typeof toDeclaredIndex>[] = [];
+  const changed: ModelIndexDiff["changed"] = [];
+
+  for (const declared of declaredIndexes) {
+    const existing = existingByName.get(declared.name);
+
+    if (!existing) {
+      missing.push(declared);
+      continue;
+    }
+
+    existingByName.delete(declared.name);
+
+    if (indexSpecsMatch(declared.description, existing.description)) {
+      matching.push(declared);
+    } else {
+      changed.push({
+        name: declared.name,
+        declared: declared.description,
+        existing: existing.description,
+      });
+    }
+  }
+
+  return {
+    modelName,
+    collectionName,
+    matching,
+    missing,
+    changed,
+    extra: [...existingByName.values()],
+  };
+}
+
+function toExistingIndex(description: Document): ExistingIndex {
+  const name = description.name;
+
+  if (typeof name !== "string" || name.trim() === "") {
+    throw new Error("MongoDB index is missing a string name");
+  }
+
+  return {
+    name,
+    description,
+  };
+}
+
 export type DefineDbOptions = {
   mongoClient: MongoClient;
   databaseName: string;
@@ -503,6 +643,8 @@ export type DefinedDb<Models extends readonly AnyModelDefinition[]> = {
   >;
 } & {
   ensureIndexes(): Promise<void>;
+  diffIndexes(): Promise<DbIndexDiff>;
+  syncIndexes(options?: SyncIndexesOptions): Promise<DbIndexDiff>;
 };
 
 export function defineDb<const Models extends readonly AnyModelDefinition[]>(
@@ -525,6 +667,22 @@ export function defineDb<const Models extends readonly AnyModelDefinition[]>(
       for (const model of models) {
         await ensureModelIndexes(db, model);
       }
+    },
+    async diffIndexes() {
+      return {
+        models: await Promise.all(models.map((model) => diffModelIndexes(db, model))),
+      };
+    },
+    async syncIndexes(options) {
+      const indexDiffs: ModelIndexDiff[] = [];
+
+      for (const model of models) {
+        indexDiffs.push(await syncModelIndexes(db, model, options));
+      }
+
+      return {
+        models: indexDiffs,
+      };
     },
   } as DefinedDb<Models>;
 }

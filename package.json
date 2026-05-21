@@ -1,9 +1,13 @@
 {
   "name": "@mp-lb/zog",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A tiny Zod-first persistence layer for MongoDB.",
   "packageManager": "pnpm@10.10.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/mp-lb/zog.git"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -18,10 +22,15 @@
     "README.md",
     "SPEC.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
+    "prepublishOnly": "pnpm test && pnpm typecheck && pnpm build",
     "test": "vitest run",
+    "test:integration": "ZOG_INTEGRATION_MONGODB_URI=${ZOG_INTEGRATION_MONGODB_URI:-mongodb://127.0.0.1:27017} vitest run test/indexes.integration.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [

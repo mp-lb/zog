@@ -145,6 +145,23 @@ await db.ensureIndexes();
 The `as const` is important. It lets TypeScript infer `db.users` from the
 literal model name.
 
+`ensureIndexes()` is additive: it creates declared indexes and leaves existing
+indexes alone. To inspect or reconcile indexes, use the diff and sync APIs:
+
+```ts
+const diff = await db.diffIndexes();
+
+const dryRun = await db.syncIndexes({ dryRun: true });
+
+await db.syncIndexes();
+```
+
+`diffIndexes()` reports matching, missing, changed, and extra indexes for each
+model. `syncIndexes()` drops changed indexes, creates missing and changed
+declared indexes, and drops undeclared extra indexes by default. Use
+`{ dropExtra: false }` to keep extra indexes while still fixing changed declared
+indexes.
+
 ## 5. Read And Write
 
 ```ts

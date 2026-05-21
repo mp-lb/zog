@@ -204,10 +204,26 @@ The adapter should expose:
 
 ```ts
 await db.ensureIndexes();
+const diff = await db.diffIndexes();
+const dryRun = await db.syncIndexes({ dryRun: true });
+await db.syncIndexes();
 ```
 
 Index creation should be idempotent and should support named indexes where we
 need stable migration behavior.
+
+`ensureIndexes()` is additive. It creates declared indexes but does not inspect
+or drop existing indexes.
+
+`diffIndexes()` compares declared indexes with existing collection indexes and
+reports matching, missing, changed, and extra indexes. MongoDB's required `_id_`
+index is ignored.
+
+`syncIndexes()` reconciles the collection with the model declaration. It drops
+changed indexes, creates missing and changed declared indexes, and drops extra
+indexes by default. Use `{ dryRun: true }` to inspect the plan without mutating
+MongoDB. Use `{ dropExtra: false }` to leave undeclared indexes in place while
+still fixing changed declared indexes.
 
 Models may define a pre-index hook for local cleanup of legacy indexes:
 
