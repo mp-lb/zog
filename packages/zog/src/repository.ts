@@ -208,21 +208,12 @@ export function fromMongo<T extends object>(
 
   const mongoId = normalized._id;
   const primaryValue = normalized[model.primaryKey];
-  const normalizedMongoId = normalizeMongoId(model, mongoId);
 
-  if (primaryValue === undefined && normalizedMongoId !== undefined) {
+  if (primaryValue === undefined) {
+    const normalizedMongoId = normalizeMongoId(model, mongoId);
     normalized[model.primaryKey] = normalizedMongoId;
-  } else if (
-    primaryValue !== undefined &&
-    normalizedMongoId !== undefined &&
-    primaryValue !== normalizedMongoId
-  ) {
-    throw new ZogError({
-      modelName: model.modelName,
-      collectionName: model.collectionName,
-      operation: "findOne",
-      details: `primary key mismatch: _id does not match ${model.primaryKey}`,
-    });
+  } else if (model.primaryKey === "_id") {
+    normalized[model.primaryKey] = normalizeMongoId(model, primaryValue);
   }
 
   if (model.primaryKey !== "_id") {
@@ -297,10 +288,11 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async findById(id, options) {
-      const raw = await collection.findOne(
-        { _id: id } as unknown as MongoFilter<Document>,
-        withSession(session, options) as MongoFindOneOptions,
-      );
+      const raw =
+        (await collection.findOne(
+          { _id: id } as unknown as MongoFilter<Document>,
+          withSession(session, options) as MongoFindOneOptions,
+        )) ?? (await findLegacyDocumentByPrimaryKey(id, options));
       return parseRead(raw, "findById");
     },
 
@@ -578,6 +570,20 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       }
     },
   };
+
+  function findLegacyDocumentByPrimaryKey(
+    id: string,
+    options: FindOneOptions | undefined,
+  ): Promise<Document | null> {
+    if (runtime.primaryKey === "_id") {
+      return Promise.resolve(null);
+    }
+
+    return collection.findOne(
+      { [runtime.primaryKey]: id } as unknown as MongoFilter<Document>,
+      withSession(session, options) as MongoFindOneOptions,
+    );
+  }
 }
 
 export async function ensureModelIndexes<Model extends AnyModelDefinition>(

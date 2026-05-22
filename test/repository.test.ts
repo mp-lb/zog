@@ -138,6 +138,41 @@ describe("Zog repository", () => {
     expect(userSchema.parse(candidate)).toEqual(user);
   });
 
+  it("prefers an explicit primary key field over a legacy Mongo _id", () => {
+    const candidate = fromMongo(
+      {
+        modelName: "users",
+        collectionName: "users",
+        primaryKey: "id",
+        schema: userSchema,
+        normalizeLegacy: undefined,
+        objectIdPolicy: "reject",
+      },
+      {
+        ...user,
+        _id: new ObjectId("000000000000000000000001"),
+      },
+    );
+
+    expect(userSchema.parse(candidate)).toEqual(user);
+    expect(candidate).not.toHaveProperty("_id");
+  });
+
+  it("finds legacy documents by app primary key when Mongo _id was generated", async () => {
+    const fake = createFakeMongoClient();
+    fake.collection("users").documents.set("legacy", {
+      ...user,
+      _id: new ObjectId("000000000000000000000001"),
+    });
+
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(db.users.findById("user_1")).resolves.toEqual(user);
+  });
+
   it("throws a storage error when stored data cannot parse", async () => {
     const fake = createFakeMongoClient();
     fake.collection("users").documents.set("user_1", {
