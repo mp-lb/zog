@@ -1,7 +1,14 @@
-import { ObjectId, type Db, type Document, type MongoClient } from "mongodb";
+import {
+  ObjectId,
+  type Db,
+  type Document,
+  type MongoClient,
+  type TransactionOptions,
+} from "mongodb";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
 import {
+  createMongoZodCollection,
   createModel,
   defineDb,
   fromMongo,
@@ -215,6 +222,177 @@ describe("Zog repository", () => {
     expect(fake.collection("users").documents.get("user_1")?.name).toBe("Updated User");
   });
 
+  it("sets validated fields by id without replacing the whole document", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.insert(user);
+
+    await expect(db.users.setById("user_1", { name: " Updated User " })).resolves.toEqual({
+      ...user,
+      name: "Updated User",
+    });
+    expect(fake.collection("users").documents.get("user_1")).toMatchObject({
+      _id: "user_1",
+      name: "Updated User",
+    });
+    expect(fake.collection("users").lastUpdates).toEqual([
+      { $set: { name: "Updated User" } },
+    ]);
+  });
+
+  it("rejects unsafe setById patches before writing", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.insert(user);
+
+    await expect(db.users.setById("user_1", { id: "other" })).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "update",
+    });
+    await expect(
+      db.users.setById("user_1", { email: "not-an-email" }),
+    ).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "update",
+    });
+    expect(fake.collection("users").lastUpdates).toEqual([]);
+  });
+
+  it("sets timestamps on parsed inserts when configured", async () => {
+    const clock = createClock([
+      "2026-05-18T01:00:00.000Z",
+      "2026-05-18T02:00:00.000Z",
+    ]);
+    const timestampedModel = createModel("users", userSchema, {
+      primaryKey: "id",
+      timestamps: {
+        createdAt: "createdAt",
+        updatedAt: "updatedAt",
+        now: clock,
+      },
+    });
+    const fake = createFakeMongoClient();
+    const db = defineDb([timestampedModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(
+      db.users.insert({
+        id: "user_1",
+        email: user.email,
+        name: user.name,
+      }),
+    ).resolves.toEqual({
+      ...user,
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T01:00:00.000Z",
+    });
+    await db.users.insertOne({
+      id: "user_2",
+      email: "second@example.com",
+      name: "Second User",
+    });
+
+    expect(fake.collection("users").documents.get("user_1")).toMatchObject({
+      _id: "user_1",
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T01:00:00.000Z",
+    });
+    expect(fake.collection("users").documents.get("user_2")).toMatchObject({
+      _id: "user_2",
+      createdAt: "2026-05-18T02:00:00.000Z",
+      updatedAt: "2026-05-18T02:00:00.000Z",
+    });
+  });
+
+  it("updates updatedAt on parsed update and replacement helpers", async () => {
+    const clock = createClock([
+      "2026-05-18T01:00:00.000Z",
+      "2026-05-18T02:00:00.000Z",
+      "2026-05-18T03:00:00.000Z",
+    ]);
+    const timestampedModel = createModel("users", userSchema, {
+      primaryKey: "id",
+      timestamps: {
+        createdAt: "createdAt",
+        updatedAt: "updatedAt",
+        now: clock,
+      },
+    });
+    const fake = createFakeMongoClient();
+    const db = defineDb([timestampedModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.insert(user);
+    await db.users.updateOne({ id: "user_1" }, { $set: { name: "Updated User" } });
+
+    expect(fake.collection("users").documents.get("user_1")).toMatchObject({
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T02:00:00.000Z",
+      name: "Updated User",
+    });
+
+    await expect(
+      db.users.updateById("user_1", { name: "Replaced User" }),
+    ).resolves.toMatchObject({
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T03:00:00.000Z",
+      name: "Replaced User",
+    });
+    expect(fake.collection("users").documents.get("user_1")).toMatchObject({
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T03:00:00.000Z",
+      name: "Replaced User",
+    });
+  });
+
+  it("advances updatedAt on setById when timestamps are configured", async () => {
+    const clock = createClock([
+      "2026-05-18T01:00:00.000Z",
+      "2026-05-18T02:00:00.000Z",
+    ]);
+    const timestampedModel = createModel("users", userSchema, {
+      primaryKey: "id",
+      timestamps: {
+        createdAt: "createdAt",
+        updatedAt: "updatedAt",
+        now: clock,
+      },
+    });
+    const fake = createFakeMongoClient();
+    const db = defineDb([timestampedModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.insert(user);
+
+    await expect(db.users.setById("user_1", { name: "Updated User" })).resolves.toMatchObject({
+      createdAt: "2026-05-18T01:00:00.000Z",
+      updatedAt: "2026-05-18T02:00:00.000Z",
+      name: "Updated User",
+    });
+    expect(fake.collection("users").lastUpdates).toEqual([
+      {
+        $set: {
+          name: "Updated User",
+          updatedAt: "2026-05-18T02:00:00.000Z",
+        },
+      },
+    ]);
+  });
+
   it("uses Mongo-shaped write methods with primary-key filter mapping", async () => {
     const fake = createFakeMongoClient();
     const db = defineDb([userModel] as const, {
@@ -363,6 +541,43 @@ describe("Zog repository", () => {
     });
     expect(fake.collection("stores").createdIndexes).toEqual([]);
     expect(fake.collection("stores").droppedIndexes).toEqual([]);
+  });
+
+  it("syncs indexes when the collection does not exist yet", async () => {
+    const model = createModel("stores", userSchema, {
+      primaryKey: "id",
+      indexes: [index({ email: 1 }, { name: "email_1" })],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("stores").namespaceExists = false;
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    const dryRun = await db.syncIndexes({ dryRun: true });
+
+    expect(dryRun.models[0]).toMatchObject({
+      missing: [{ name: "email_1" }],
+      changed: [],
+      extra: [],
+    });
+    expect(fake.collection("stores").createdIndexes).toEqual([]);
+
+    const synced = await db.syncIndexes();
+
+    expect(synced.models[0]).toMatchObject({
+      missing: [{ name: "email_1" }],
+      changed: [],
+      extra: [],
+    });
+    expect(fake.collection("stores").createdIndexes).toEqual([
+      {
+        key: { email: 1 },
+        name: "email_1",
+      },
+    ]);
+    expect(fake.collection("stores").namespaceExists).toBe(true);
   });
 
   it("syncs indexes by dropping changed and extra indexes before creating declared indexes", async () => {
@@ -531,6 +746,61 @@ describe("Zog repository", () => {
     );
   });
 
+  it("enforces opt-in collection name policies", async () => {
+    const snakeModel = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      primaryKey: "id",
+    });
+    const pascalModel = createModel("stores", userSchema, {
+      collectionName: "StoreMetadata",
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+
+    expect(() =>
+      defineDb([snakeModel] as const, {
+        mongoClient: fake.client,
+        databaseName: "test",
+        collectionNamePolicy: "snake",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      defineDb([pascalModel] as const, {
+        mongoClient: fake.client,
+        databaseName: "test",
+        collectionNamePolicy: null,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      defineDb([snakeModel] as const, {
+        mongoClient: fake.client,
+        databaseName: "test",
+        collectionNamePolicy: "camel",
+      }),
+    ).toThrow(/collection name must be camel case/);
+    expect(() =>
+      defineDb([snakeModel] as const, {
+        mongoClient: fake.client,
+        databaseName: "test",
+        collectionNamePolicy: "pascal",
+      }),
+    ).toThrow(/collection name must be pascal case/);
+  });
+
+  it("enforces collection name policies on standalone repositories", () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "StoreMetadata",
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+
+    expect(() =>
+      createMongoZodCollection(fake.client.db("test"), model, {
+        collectionNamePolicy: "snake",
+      }),
+    ).toThrow(/collection name must be snake case/);
+  });
+
   it("runs beforeEnsureIndexes before creating configured indexes", async () => {
     const events: string[] = [];
     const model = createModel("users", userSchema, {
@@ -558,10 +828,61 @@ describe("Zog repository", () => {
       },
     ]);
   });
+
+  it("binds repositories to an explicit MongoDB session", async () => {
+    const fake = createFakeMongoClient();
+    const session = fake.client.startSession();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    const tx = db.withSession(session);
+
+    expect(tx.session).toBe(session);
+    expectTypeOf(tx.users).toEqualTypeOf(db.users);
+
+    await tx.users.insert(user);
+    await tx.users.findById("user_1");
+    await tx.users.updateOne({ id: "user_1" }, { $set: { name: "Session User" } });
+
+    expect(fake.collection("users").lastOptions).toEqual([
+      { session },
+      { session },
+      { session },
+    ]);
+  });
+
+  it("runs callbacks inside explicit transactions and ends the session", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+    const transactionOptions = {
+      maxCommitTimeMS: 5000,
+    } satisfies TransactionOptions;
+
+    const { transaction } = db;
+    const result = await transaction(async (tx) => {
+      await tx.users.insert(user);
+      return tx.users.findById("user_1");
+    }, transactionOptions);
+
+    expect(result).toEqual(user);
+    expect(fake.sessions).toHaveLength(1);
+    expect(fake.sessions[0]?.transactionOptions).toBe(transactionOptions);
+    expect(fake.sessions[0]?.ended).toBe(true);
+    expect(fake.collection("users").lastOptions).toEqual([
+      { session: fake.sessions[0] },
+      { session: fake.sessions[0] },
+    ]);
+  });
 });
 
 function createFakeMongoClient() {
   const collections = new Map<string, FakeCollection>();
+  const sessions: FakeSession[] = [];
 
   function collection(name: string): FakeCollection {
     const existing = collections.get(name);
@@ -580,9 +901,20 @@ function createFakeMongoClient() {
 
   const client = {
     db: () => db,
+    startSession: () => {
+      const session = new FakeSession();
+      sessions.push(session);
+      return session;
+    },
   } as unknown as MongoClient;
 
-  return { client, collection };
+  return { client, collection, sessions };
+}
+
+function createClock(values: string[]): () => string {
+  let index = 0;
+
+  return () => values[index++] ?? values.at(-1) ?? "2026-05-18T00:00:00.000Z";
 }
 
 class FakeCollection {
@@ -597,38 +929,48 @@ class FakeCollection {
     },
   ];
   readonly lastFilters: Document[] = [];
+  readonly lastOptions: Document[] = [];
+  readonly lastUpdates: Document[] = [];
+  namespaceExists = true;
 
-  async findOne(filter: Document): Promise<Document | null> {
+  async findOne(filter: Document, options?: Document): Promise<Document | null> {
     this.lastFilters.push({ ...filter });
+    this.recordOptions(options);
     return this.findMatching(filter)[0] ?? null;
   }
 
-  find(filter: Document) {
+  find(filter: Document, options?: Document) {
     this.lastFilters.push({ ...filter });
+    this.recordOptions(options);
     return new FakeCursor(this.findMatching(filter));
   }
 
-  async insertOne(document: Document): Promise<Document> {
+  async insertOne(document: Document, options?: Document): Promise<Document> {
+    this.recordOptions(options);
     this.documents.set(String(document._id), { ...document });
     return { acknowledged: true, insertedId: document._id };
   }
 
-  async insertMany(documents: Document[]): Promise<Document> {
+  async insertMany(documents: Document[], options?: Document): Promise<Document> {
+    this.recordOptions(options);
     for (const document of documents) {
       this.documents.set(String(document._id), { ...document });
     }
     return { acknowledged: true, insertedCount: documents.length };
   }
 
-  async replaceOne(filter: Document, document: Document): Promise<Document> {
+  async replaceOne(filter: Document, document: Document, options?: Document): Promise<Document> {
     this.lastFilters.push({ ...filter });
+    this.recordOptions(options);
     const id = String(filter._id);
     this.documents.set(id, { ...document });
     return { acknowledged: true, matchedCount: 1, modifiedCount: 1 };
   }
 
-  async updateOne(filter: Document, update: Document): Promise<Document> {
+  async updateOne(filter: Document, update: Document, options?: Document): Promise<Document> {
     this.lastFilters.push({ ...filter });
+    this.lastUpdates.push({ ...update });
+    this.recordOptions(options);
     const existing = this.findMatching(filter)[0];
     if (existing) {
       applyFakeUpdate(existing, update);
@@ -636,8 +978,10 @@ class FakeCollection {
     return { acknowledged: true, matchedCount: existing ? 1 : 0, modifiedCount: existing ? 1 : 0 };
   }
 
-  async updateMany(filter: Document, update: Document): Promise<Document> {
+  async updateMany(filter: Document, update: Document, options?: Document): Promise<Document> {
     this.lastFilters.push({ ...filter });
+    this.lastUpdates.push({ ...update });
+    this.recordOptions(options);
     const matches = this.findMatching(filter);
     for (const existing of matches) {
       applyFakeUpdate(existing, update);
@@ -645,30 +989,40 @@ class FakeCollection {
     return { acknowledged: true, matchedCount: matches.length, modifiedCount: matches.length };
   }
 
-  async findOneAndUpdate(filter: Document, update: Document): Promise<Document | null> {
-    await this.updateOne(filter, update);
+  async findOneAndUpdate(
+    filter: Document,
+    update: Document,
+    options?: Document,
+  ): Promise<Document | null> {
+    await this.updateOne(filter, update, options);
     return this.findMatching(filter)[0] ?? null;
   }
 
-  async findOneAndReplace(filter: Document, document: Document): Promise<Document | null> {
-    await this.replaceOne(filter, document);
+  async findOneAndReplace(
+    filter: Document,
+    document: Document,
+    options?: Document,
+  ): Promise<Document | null> {
+    await this.replaceOne(filter, document, options);
     return this.findMatching(filter)[0] ?? null;
   }
 
-  async findOneAndDelete(filter: Document): Promise<Document | null> {
+  async findOneAndDelete(filter: Document, options?: Document): Promise<Document | null> {
     const existing = this.findMatching(filter)[0] ?? null;
-    await this.deleteOne(filter);
+    await this.deleteOne(filter, options);
     return existing;
   }
 
-  async deleteOne(filter: Document): Promise<Document> {
+  async deleteOne(filter: Document, options?: Document): Promise<Document> {
     this.lastFilters.push({ ...filter });
+    this.recordOptions(options);
     this.documents.delete(String(filter._id));
     return { acknowledged: true, deletedCount: 1 };
   }
 
-  async deleteMany(filter: Document): Promise<Document> {
+  async deleteMany(filter: Document, options?: Document): Promise<Document> {
     this.lastFilters.push({ ...filter });
+    this.recordOptions(options);
     const matches = this.findMatching(filter);
     for (const existing of matches) {
       this.documents.delete(String(existing._id));
@@ -676,11 +1030,13 @@ class FakeCollection {
     return { acknowledged: true, deletedCount: matches.length };
   }
 
-  async bulkWrite(): Promise<Document> {
+  async bulkWrite(_operations?: Document[], options?: Document): Promise<Document> {
+    this.recordOptions(options);
     return { ok: 1 };
   }
 
   async createIndexes(indexes: Document[]): Promise<string[]> {
+    this.namespaceExists = true;
     this.createdIndexes.push(...indexes);
     for (const index of indexes) {
       const name = String(index.name ?? defaultFakeIndexName(index.key));
@@ -711,13 +1067,43 @@ class FakeCollection {
   }
 
   listIndexes(): FakeCursor {
+    if (!this.namespaceExists) {
+      throw Object.assign(new Error("ns does not exist"), {
+        code: 26,
+        codeName: "NamespaceNotFound",
+      });
+    }
+
     return new FakeCursor([...this.existingIndexes]);
+  }
+
+  private recordOptions(options: Document | undefined): void {
+    if (options !== undefined) {
+      this.lastOptions.push(options);
+    }
   }
 
   private findMatching(filter: Document): Document[] {
     return [...this.documents.values()].filter((document) =>
       Object.entries(filter).every(([key, value]) => document[key] === value),
     );
+  }
+}
+
+class FakeSession {
+  ended = false;
+  transactionOptions: TransactionOptions | undefined;
+
+  async withTransaction<T>(
+    callback: () => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T> {
+    this.transactionOptions = options;
+    return callback();
+  }
+
+  async endSession(): Promise<void> {
+    this.ended = true;
   }
 }
 

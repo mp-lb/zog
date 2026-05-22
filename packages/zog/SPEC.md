@@ -76,6 +76,22 @@ export const storeModel = createModel("stores", storeSchema, {
 });
 ```
 
+Applications may opt into collection name policy enforcement at the Zog
+boundary:
+
+```ts
+export const db = defineDb([storeModel] as const, {
+  mongoClient,
+  databaseName,
+  collectionNamePolicy: "snake",
+});
+```
+
+Supported policies are `"camel"`, `"snake"`, and `"pascal"`. The default is
+`null`, which disables enforcement. When a policy is enabled, Zog throws before
+creating repositories or index helpers for collection names that do not match
+the policy. Direct MongoDB driver access remains outside Zog's boundary.
+
 Example database:
 
 ```ts
@@ -143,6 +159,27 @@ await collection.replaceOne({ _id: parsed.id }, document, { upsert: true });
   configured primary key is already `_id`
 - never allow Mongo to generate an ObjectId for app-owned records
 
+## Timestamps
+
+Models may opt into repository-managed timestamps:
+
+```ts
+export const jobModel = createModel("jobs", jobSchema, {
+  primaryKey: "id",
+  timestamps: {
+    createdAt: "createdAt",
+    updatedAt: "updatedAt",
+    now: () => new Date().toISOString(),
+  },
+});
+```
+
+When configured, parsed repository writes set `createdAt` and `updatedAt` on
+inserts and advance `updatedAt` on replacements and update helpers. The
+`now()` callback owns the stored value type, so models can choose ISO strings,
+BSON Dates, or another schema-compatible representation. `raw` collection
+operations are not modified.
+
 ## Repository API
 
 The repository should feel like a MongoDB collection with a Zod boundary:
@@ -163,6 +200,7 @@ type Repository<TOutput, TInput = TOutput> = {
   // Compatibility helpers:
   insert(value: TInput): Promise<TOutput>;
   replace(value: TInput): Promise<TOutput>;
+  setById(id: string, patch: Partial<TOutput>): Promise<TOutput | null>;
   updateById(id: string, patch: Partial<TOutput>): Promise<TOutput | null>;
   deleteById(id: string): Promise<void>;
 };
@@ -182,6 +220,51 @@ Non-primary filters should remain normal Mongo-style filters:
 ```ts
 db.stores.findOne({ workspaceId, slug });
 ```
+
+For safer field updates, use `setById()`. It fetches the current document,
+merges the patch, validates the resulting document through Zod, writes only the
+patched fields with `$set`, and returns the parsed updated document:
+
+```ts
+const updated = await db.users.setById(user.id, { name: "Updated User" });
+```
+
+Raw MongoDB update operators remain available through `updateOne()`,
+`updateMany()`, `findOneAndUpdate()`, and `raw`, but arbitrary update
+expressions cannot be fully schema-validated before storage.
+
+## Sessions And Transactions
+
+Mongo-shaped repository methods accept the MongoDB driver's options objects, so
+callers may pass `session` directly:
+
+```ts
+await db.users.insertOne(user, { session });
+await db.users.updateOne({ id: user.id }, { $set: { name } }, { session });
+```
+
+For repository helpers that do not expose the full driver options surface, bind
+repositories to an explicit session:
+
+```ts
+const tx = db.withSession(session);
+await tx.users.insert(user);
+await tx.users.updateById(user.id, { name });
+```
+
+Applications may also run explicit transaction scopes:
+
+```ts
+await db.transaction(async (tx) => {
+  await tx.users.insert(user);
+  await tx.auditLogs.insert(log);
+});
+```
+
+`transaction()` starts a MongoDB session, passes session-bound repositories to
+the callback, delegates commit/abort behavior to `session.withTransaction()`,
+and ends the session afterwards. The transaction context exposes `tx.session`
+for driver-native operations that need the same transaction.
 
 ## Indexes
 

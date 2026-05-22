@@ -10,20 +10,15 @@ The rule of thumb:
 - stay close to the MongoDB driver
 - keep Zod as the schema source of truth
 
-## Near-Term
+## Completed
 
 ### Index Diff And Sync
-
-Current support creates declared indexes with `ensureIndexes()`. The next step
-is visibility and controlled reconciliation.
 
 - `diffIndexes()` compares declared indexes with actual collection indexes.
 - `ensureIndexes()` remains additive and safe.
 - `syncIndexes()` is opt-in and can drop undeclared indexes.
 - Dry-run output is available before destructive changes.
 - Stable names are strongly encouraged for managed indexes.
-
-This closes the main operational gap without introducing ORM concepts.
 
 ### Timestamps
 
@@ -85,6 +80,19 @@ Ideas:
 
 This should improve safety without pretending Zog can deeply type every MongoDB
 update expression.
+
+### Collection Name Policy
+
+Applications may opt into collection naming rules at the Zog boundary.
+
+- `collectionNamePolicy: null` disables enforcement.
+- `"camel"`, `"snake"`, and `"pascal"` enforce matching collection names.
+- enforcement runs before Zog creates repositories or index helpers.
+- direct MongoDB driver access remains outside Zog's boundary.
+
+## Near-Term
+
+No active near-term items.
 
 ## Medium-Term
 

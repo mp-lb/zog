@@ -17,6 +17,8 @@ export type {
   ModelOptions,
   ObjectIdPolicy,
   SchemaOutput,
+  TimestampOptions,
+  TimestampRuntimeOptions,
   ZogSchema,
 } from "./model.js";
 export {
@@ -30,11 +32,13 @@ export {
 } from "./repository.js";
 export type {
   CreateMongoZodCollectionOptions,
+  CollectionNamePolicy,
   DefinedDb,
   DefineDbOptions,
   Filter,
   FindOneOptions,
   FindOptions,
+  ModelWriteInput,
   MongoDocument,
   ParsedFindOneAndDeleteOptions,
   ParsedFindOneAndReplaceOptions,
@@ -42,4 +46,5 @@ export type {
   ParsedFindCursor,
   Repository,
   SyncIndexesOptions,
+  TransactionalDb,
 } from "./repository.js";

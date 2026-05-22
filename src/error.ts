@@ -1,9 +1,11 @@
 export type ZogOperation =
+  | "defineDb"
   | "findById"
   | "findOne"
   | "findMany"
   | "insert"
   | "replace"
+  | "update"
   | "updateById"
   | "deleteById"
   | "ensureIndexes"

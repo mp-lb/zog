@@ -17,6 +17,18 @@ export type SchemaInput<Schema> = Schema extends { _input: infer Input }
   ? Input
   : SchemaOutput<Schema>;
 
+export type TimestampOptions<Output> = {
+  createdAt: Extract<keyof Output, string>;
+  updatedAt: Extract<keyof Output, string>;
+  now: () => unknown;
+};
+
+export type TimestampRuntimeOptions = {
+  createdAt: string;
+  updatedAt: string;
+  now: () => unknown;
+};
+
 export type ModelOptions<
   Schema extends ZogSchema,
   PrimaryKey extends Extract<keyof SchemaOutput<Schema>, string>,
@@ -27,6 +39,7 @@ export type ModelOptions<
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
   objectIdPolicy?: ObjectIdPolicy;
+  timestamps?: TimestampOptions<SchemaOutput<Schema>>;
 };
 
 export type ModelDefinition<
@@ -42,6 +55,7 @@ export type ModelDefinition<
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
   objectIdPolicy: ObjectIdPolicy;
+  timestamps?: TimestampOptions<SchemaOutput<Schema>>;
 };
 
 export type AnyModelDefinition = {
@@ -53,6 +67,7 @@ export type AnyModelDefinition = {
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
   objectIdPolicy: ObjectIdPolicy;
+  timestamps?: TimestampRuntimeOptions;
 };
 
 export type InferModel<Model extends AnyModelDefinition> =
@@ -62,11 +77,15 @@ export function createModel<
   const Name extends string,
   Schema extends ZogSchema,
   const PrimaryKey extends Extract<keyof SchemaOutput<Schema>, string>,
+  const Options extends ModelOptions<Schema, PrimaryKey>,
 >(
   name: Name,
   schema: Schema,
-  options: ModelOptions<Schema, PrimaryKey>,
-): ModelDefinition<Name, Schema, PrimaryKey> {
+  options: Options,
+): ModelDefinition<Name, Schema, PrimaryKey> &
+  (Options extends { timestamps: infer Timestamps extends TimestampOptions<SchemaOutput<Schema>> }
+    ? { timestamps: Timestamps }
+    : object) {
   const definition = {
     name,
     collectionName: options.collectionName ?? name,
@@ -84,5 +103,11 @@ export function createModel<
     ...(options.beforeEnsureIndexes === undefined
       ? {}
       : { beforeEnsureIndexes: options.beforeEnsureIndexes }),
-  };
+    ...(options.timestamps === undefined ? {} : { timestamps: options.timestamps }),
+  } as ModelDefinition<Name, Schema, PrimaryKey> &
+    (Options extends {
+      timestamps: infer Timestamps extends TimestampOptions<SchemaOutput<Schema>>;
+    }
+      ? { timestamps: Timestamps }
+      : object);
 }

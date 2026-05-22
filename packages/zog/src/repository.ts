@@ -4,6 +4,7 @@ import {
   type AnyBulkWriteOperation,
   type BulkWriteOptions,
   type BulkWriteResult,
+  type ClientSession,
   type Collection,
   type Db,
   type DeleteOptions,
@@ -24,6 +25,7 @@ import {
   type ReplaceOptions,
   type Sort,
   type SortDirection,
+  type TransactionOptions,
   type UpdateFilter,
   type UpdateOptions,
   type UpdateResult,
@@ -76,7 +78,7 @@ export type ParsedFindCursor<T extends object> = {
 export type Repository<TOutput extends object, TInput = TOutput> = {
   readonly raw: Collection<Document>;
   find(filter?: Filter<TOutput>, options?: FindOptions<TOutput>): ParsedFindCursor<TOutput>;
-  findById(id: string): Promise<TOutput | null>;
+  findById(id: string, options?: FindOneOptions): Promise<TOutput | null>;
   findOne(filter?: Filter<TOutput>, options?: FindOneOptions): Promise<TOutput | null>;
   findMany(filter: Filter<TOutput>, options?: FindOptions<TOutput>): Promise<TOutput[]>;
   insertOne(value: TInput, options?: InsertOneOptions): Promise<InsertOneResult<Document>>;
@@ -121,9 +123,31 @@ export type Repository<TOutput extends object, TInput = TOutput> = {
   ): Promise<BulkWriteResult>;
   insert(value: TInput): Promise<TOutput>;
   replace(value: TInput): Promise<TOutput>;
+  setById(id: string, patch: Partial<TOutput>): Promise<TOutput | null>;
   updateById(id: string, patch: Partial<TOutput>): Promise<TOutput | null>;
   deleteById(id: string): Promise<void>;
 };
+
+type TimestampFieldNames<Model extends AnyModelDefinition> =
+  Model extends { timestamps: infer Timestamps }
+    ? Timestamps extends {
+        createdAt: infer CreatedAt extends string;
+        updatedAt: infer UpdatedAt extends string;
+      }
+      ? CreatedAt | UpdatedAt
+      : never
+    : never;
+
+type OptionalTimestampInput<Input, Keys extends string> =
+  Input extends object
+    ? Omit<Input, Extract<Keys, keyof Input>> &
+        Partial<Pick<Input, Extract<Keys, keyof Input>>>
+    : Input;
+
+export type ModelWriteInput<Model extends AnyModelDefinition> = OptionalTimestampInput<
+  SchemaInput<Model["schema"]>,
+  TimestampFieldNames<Model>
+>;
 
 type ModelRuntime<T extends object> = {
   modelName: string;
@@ -132,6 +156,11 @@ type ModelRuntime<T extends object> = {
   schema: ZogSchema<T>;
   normalizeLegacy: ((raw: Record<string, unknown>) => Record<string, unknown>) | undefined;
   objectIdPolicy: "reject" | "stringify";
+  timestamps?: {
+    createdAt: string;
+    updatedAt: string;
+    now: () => unknown;
+  };
 };
 
 export type MongoDocument<T extends object = object> = Partial<T> & {
@@ -207,12 +236,19 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
   options: CreateMongoZodCollectionOptions = {},
-): Repository<InferModel<Model>, SchemaInput<Model["schema"]>> {
+): Repository<InferModel<Model>, ModelWriteInput<Model>> {
   type T = InferModel<Model>;
-  type Input = SchemaInput<Model["schema"]>;
+  type Input = ModelWriteInput<Model>;
 
   const collectionName = options.collectionName ?? model.collectionName;
+  assertCollectionNamePolicy({
+    modelName: model.name,
+    collectionName,
+    policy: options.collectionNamePolicy ?? null,
+    operation: "defineDb",
+  });
   const collection = db.collection(collectionName) as Collection<Document>;
+  const session = options.session;
   const runtime: ModelRuntime<T> = {
     modelName: model.name,
     collectionName,
@@ -220,6 +256,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     schema: model.schema as ZogSchema<T>,
     normalizeLegacy: model.normalizeLegacy,
     objectIdPolicy: model.objectIdPolicy,
+    ...(model.timestamps === undefined ? {} : { timestamps: model.timestamps }),
   };
 
   function parseReadDocument(raw: Document | null, operation: ZogOperation): T | null {
@@ -235,9 +272,13 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     return parseReadDocument(raw, operation);
   }
 
-  function parseWrite(value: Input, operation: ZogOperation): MongoDocument<T> {
+  function parseWrite(
+    value: Input,
+    operation: ZogOperation,
+    timestampMode: TimestampMode,
+  ): MongoDocument<T> {
     try {
-      const parsed = runtime.schema.parse(value);
+      const parsed = runtime.schema.parse(applyWriteTimestamps(runtime, value, timestampMode));
       return toMongo(runtime, parsed);
     } catch (cause) {
       throw wrapError(runtime, operation, cause);
@@ -250,20 +291,23 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     find(filter = {}, options) {
       const cursor = collection.find(
         toMongoFilter(runtime, filter),
-        options as MongoFindOptions<Document>,
+        withSession(session, options) as MongoFindOptions<Document>,
       );
       return createParsedCursor(cursor, (raw) => parseReadDocument(raw, "findMany"));
     },
 
-    async findById(id) {
-      const raw = await collection.findOne({ _id: id } as unknown as MongoFilter<Document>);
+    async findById(id, options) {
+      const raw = await collection.findOne(
+        { _id: id } as unknown as MongoFilter<Document>,
+        withSession(session, options) as MongoFindOneOptions,
+      );
       return parseRead(raw, "findById");
     },
 
     async findOne(filter = {}, options) {
       const raw = await collection.findOne(
         toMongoFilter(runtime, filter),
-        options as MongoFindOneOptions,
+        withSession(session, options) as MongoFindOneOptions,
       );
       return parseRead(raw, "findOne");
     },
@@ -271,7 +315,10 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     async findMany(filter, options) {
       try {
         const rawDocuments = await collection
-          .find(toMongoFilter(runtime, filter), options as MongoFindOptions<Document>)
+          .find(
+            toMongoFilter(runtime, filter),
+            withSession(session, options) as MongoFindOptions<Document>,
+          )
           .toArray();
 
         return rawDocuments.map((raw) => {
@@ -287,12 +334,12 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async insertOne(value, options) {
-      const document = parseWrite(value, "insert");
+      const document = parseWrite(value, "insert", "insert");
 
       try {
         return await collection.insertOne(
           document as OptionalUnlessRequiredId<Document>,
-          options,
+          withSession(session, options),
         );
       } catch (cause) {
         throw wrapError(runtime, "insert", cause);
@@ -300,12 +347,12 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async insertMany(values, options) {
-      const documents = values.map((value) => parseWrite(value, "insert"));
+      const documents = values.map((value) => parseWrite(value, "insert", "insert"));
 
       try {
         return await collection.insertMany(
           documents as OptionalUnlessRequiredId<Document>[],
-          options,
+          withSession(session, options),
         );
       } catch (cause) {
         throw wrapError(runtime, "insert", cause);
@@ -313,13 +360,13 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async replaceOne(filter, value, options) {
-      const document = parseWrite(value, "replace");
+      const document = parseWrite(value, "replace", "update");
 
       try {
         return await collection.replaceOne(
           toMongoFilter(runtime, filter),
           document,
-          options,
+          withSession(session, options),
         );
       } catch (cause) {
         throw wrapError(runtime, "replace", cause);
@@ -331,8 +378,8 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
         return await collection.updateOne(
           toMongoFilter(runtime, filter),
-          toMongoUpdate(runtime, update),
-          options,
+          toMongoUpdate(runtime, withUpdateTimestamp(runtime, update)),
+          withSession(session, options),
         );
       } catch (cause) {
         throw wrapError(runtime, "updateById", cause);
@@ -344,8 +391,8 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
         return await collection.updateMany(
           toMongoFilter(runtime, filter),
-          toMongoUpdate(runtime, update),
-          options,
+          toMongoUpdate(runtime, withUpdateTimestamp(runtime, update)),
+          withSession(session, options),
         );
       } catch (cause) {
         throw wrapError(runtime, "updateById", cause);
@@ -355,14 +402,15 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     async findOneAndUpdate(filter, update, options) {
       try {
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
+        const timestampedUpdate = withUpdateTimestamp(runtime, update);
         const raw = await (collection.findOneAndUpdate as unknown as (
           filter: MongoFilter<Document>,
           update: UpdateFilter<Document> | Document[],
           options?: ParsedFindOneAndUpdateOptions,
         ) => Promise<Document | null>)(
           toMongoFilter(runtime, filter),
-          toMongoUpdate(runtime, update),
-          options,
+          toMongoUpdate(runtime, timestampedUpdate),
+          withSession(session, options),
         );
         return parseRead(raw, "findOne");
       } catch (cause) {
@@ -371,14 +419,18 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async findOneAndReplace(filter, value, options) {
-      const document = parseWrite(value, "replace");
+      const document = parseWrite(value, "replace", "update");
 
       try {
         const raw = await (collection.findOneAndReplace as unknown as (
           filter: MongoFilter<Document>,
           replacement: Document,
           options?: ParsedFindOneAndReplaceOptions,
-        ) => Promise<Document | null>)(toMongoFilter(runtime, filter), document, options);
+        ) => Promise<Document | null>)(
+          toMongoFilter(runtime, filter),
+          document,
+          withSession(session, options),
+        );
         return parseRead(raw, "findOne");
       } catch (cause) {
         throw wrapError(runtime, "replace", cause);
@@ -390,7 +442,10 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
         const raw = await (collection.findOneAndDelete as unknown as (
           filter: MongoFilter<Document>,
           options?: ParsedFindOneAndDeleteOptions,
-        ) => Promise<Document | null>)(toMongoFilter(runtime, filter), options);
+        ) => Promise<Document | null>)(
+          toMongoFilter(runtime, filter),
+          withSession(session, options),
+        );
         return parseRead(raw, "findOne");
       } catch (cause) {
         throw wrapError(runtime, "deleteById", cause);
@@ -399,7 +454,10 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async deleteOne(filter = {}, options) {
       try {
-        return await collection.deleteOne(toMongoFilter(runtime, filter), options);
+        return await collection.deleteOne(
+          toMongoFilter(runtime, filter),
+          withSession(session, options),
+        );
       } catch (cause) {
         throw wrapError(runtime, "deleteById", cause);
       }
@@ -407,7 +465,10 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async deleteMany(filter = {}, options) {
       try {
-        return await collection.deleteMany(toMongoFilter(runtime, filter), options);
+        return await collection.deleteMany(
+          toMongoFilter(runtime, filter),
+          withSession(session, options),
+        );
       } catch (cause) {
         throw wrapError(runtime, "deleteById", cause);
       }
@@ -415,25 +476,72 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async bulkWrite(operations, options) {
       try {
-        return await collection.bulkWrite(operations, options);
+        return await collection.bulkWrite(operations, withSession(session, options));
       } catch (cause) {
         throw wrapError(runtime, "replace", cause);
       }
     },
 
     async insert(value) {
-      await this.insertOne(value);
-      return runtime.schema.parse(value);
+      const timestamped = applyWriteTimestamps(runtime, value, "insert");
+      const document = parseWrite(timestamped as Input, "insert", "none");
+
+      try {
+        await collection.insertOne(
+          document as OptionalUnlessRequiredId<Document>,
+          withSession(session, undefined),
+        );
+        return runtime.schema.parse(timestamped);
+      } catch (cause) {
+        throw wrapError(runtime, "insert", cause);
+      }
     },
 
     async replace(value) {
-      const parsed = runtime.schema.parse(value);
-      await this.replaceOne(
-        { [runtime.primaryKey]: (parsed as Record<string, unknown>)[runtime.primaryKey] } as Filter<T>,
-        value,
-        { upsert: true },
-      );
+      const timestamped = applyWriteTimestamps(runtime, value, "update");
+      const parsed = runtime.schema.parse(timestamped);
+      const document = parseWrite(timestamped as Input, "replace", "none");
+
+      try {
+        await collection.replaceOne(
+          toMongoFilter(runtime, {
+            [runtime.primaryKey]: (parsed as Record<string, unknown>)[runtime.primaryKey],
+          } as Filter<T>),
+          document,
+          withSession(session, { upsert: true }),
+        );
+      } catch (cause) {
+        throw wrapError(runtime, "replace", cause);
+      }
+
       return parsed;
+    },
+
+    async setById(id, patch) {
+      const existing = await this.findById(id);
+
+      if (existing === null) {
+        return null;
+      }
+
+      const parsed = parsePatchMerge(runtime, existing, patch, id);
+      const timestamped = runtime.schema.parse(
+        applyWriteTimestamps(runtime, parsed, "update"),
+      );
+      const update = {
+        $set: toMongoSetPatch(runtime, timestamped, patch),
+      };
+
+      try {
+        await collection.updateOne(
+          toMongoFilter(runtime, { [runtime.primaryKey]: id } as Filter<T>),
+          toMongoUpdate(runtime, update as UpdateFilter<T & Document>),
+          withSession(session, undefined),
+        );
+        return timestamped;
+      } catch (cause) {
+        throw wrapError(runtime, "update", cause);
+      }
     },
 
     async updateById(id, patch) {
@@ -475,7 +583,14 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 export async function ensureModelIndexes<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
+  options: { collectionNamePolicy?: CollectionNamePolicy | null } = {},
 ): Promise<void> {
+  assertCollectionNamePolicy({
+    modelName: model.name,
+    collectionName: model.collectionName,
+    policy: options.collectionNamePolicy ?? null,
+    operation: "ensureIndexes",
+  });
   const collection = db.collection(model.collectionName);
 
   try {
@@ -497,11 +612,18 @@ export async function ensureModelIndexes<Model extends AnyModelDefinition>(
 export async function diffModelIndexes<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
+  options: { collectionNamePolicy?: CollectionNamePolicy | null } = {},
 ): Promise<ModelIndexDiff> {
+  assertCollectionNamePolicy({
+    modelName: model.name,
+    collectionName: model.collectionName,
+    policy: options.collectionNamePolicy ?? null,
+    operation: "diffIndexes",
+  });
   const collection = db.collection(model.collectionName);
 
   try {
-    const existingIndexes = await collection.listIndexes().toArray();
+    const existingIndexes = await listExistingIndexes(collection);
     return diffIndexDescriptions(
       model.name,
       model.collectionName,
@@ -518,7 +640,30 @@ export async function diffModelIndexes<Model extends AnyModelDefinition>(
   }
 }
 
+async function listExistingIndexes(collection: Collection<Document>): Promise<Document[]> {
+  try {
+    return await collection.listIndexes().toArray();
+  } catch (error) {
+    if (isNamespaceNotFoundError(error)) {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+function isNamespaceNotFoundError(error: unknown): boolean {
+  const candidate = error as { code?: unknown; codeName?: unknown } | null;
+
+  return (
+    typeof candidate === "object" &&
+    candidate !== null &&
+    (candidate.code === 26 || candidate.codeName === "NamespaceNotFound")
+  );
+}
+
 export type SyncIndexesOptions = {
+  collectionNamePolicy?: CollectionNamePolicy | null;
   dryRun?: boolean;
   dropExtra?: boolean;
 };
@@ -528,6 +673,12 @@ export async function syncModelIndexes<Model extends AnyModelDefinition>(
   model: Model,
   options: SyncIndexesOptions = {},
 ): Promise<ModelIndexDiff> {
+  assertCollectionNamePolicy({
+    modelName: model.name,
+    collectionName: model.collectionName,
+    policy: options.collectionNamePolicy ?? null,
+    operation: "syncIndexes",
+  });
   const collection = db.collection(model.collectionName);
   const dryRun = options.dryRun ?? false;
   const dropExtra = options.dropExtra ?? true;
@@ -630,21 +781,39 @@ function toExistingIndex(description: Document): ExistingIndex {
 export type DefineDbOptions = {
   mongoClient: MongoClient;
   databaseName: string;
+  collectionNamePolicy?: CollectionNamePolicy | null;
 };
 
 export type CreateMongoZodCollectionOptions = {
   collectionName?: string;
+  collectionNamePolicy?: CollectionNamePolicy | null;
+  session?: ClientSession;
 };
 
-export type DefinedDb<Models extends readonly AnyModelDefinition[]> = {
+export type CollectionNamePolicy = "camel" | "snake" | "pascal";
+
+type DefinedRepositories<Models extends readonly AnyModelDefinition[]> = {
   [Model in Models[number] as Model["name"]]: Repository<
     InferModel<Model>,
-    SchemaInput<Model["schema"]>
+    ModelWriteInput<Model>
   >;
-} & {
+};
+
+export type TransactionalDb<Models extends readonly AnyModelDefinition[]> =
+  DefinedRepositories<Models> & {
+    readonly session: ClientSession;
+  };
+
+export type DefinedDb<Models extends readonly AnyModelDefinition[]> =
+  DefinedRepositories<Models> & {
   ensureIndexes(): Promise<void>;
   diffIndexes(): Promise<DbIndexDiff>;
   syncIndexes(options?: SyncIndexesOptions): Promise<DbIndexDiff>;
+  withSession(session: ClientSession): TransactionalDb<Models>;
+  transaction<T>(
+    callback: (tx: TransactionalDb<Models>) => Promise<T>,
+    options?: TransactionOptions,
+  ): Promise<T>;
 };
 
 export function defineDb<const Models extends readonly AnyModelDefinition[]>(
@@ -652,39 +821,134 @@ export function defineDb<const Models extends readonly AnyModelDefinition[]>(
   options: DefineDbOptions,
 ): DefinedDb<Models> {
   const db = options.mongoClient.db(options.databaseName);
-  const repositories: Record<string, Repository<object, unknown>> = {};
+  const collectionNamePolicy = options.collectionNamePolicy ?? null;
+  validateModelCollectionNames(models, collectionNamePolicy);
+  const repositories = createRepositories(db, models, {
+    collectionNamePolicy,
+  });
 
-  for (const model of models) {
-    repositories[model.name] = createMongoZodCollection(db, model) as Repository<
-      object,
-      unknown
-    >;
-  }
-
-  return {
+  const definedDb = {
     ...repositories,
     async ensureIndexes() {
       for (const model of models) {
-        await ensureModelIndexes(db, model);
+        await ensureModelIndexes(db, model, { collectionNamePolicy });
       }
     },
     async diffIndexes() {
       return {
-        models: await Promise.all(models.map((model) => diffModelIndexes(db, model))),
+        models: await Promise.all(
+          models.map((model) => diffModelIndexes(db, model, { collectionNamePolicy })),
+        ),
       };
     },
     async syncIndexes(options) {
       const indexDiffs: ModelIndexDiff[] = [];
 
       for (const model of models) {
-        indexDiffs.push(await syncModelIndexes(db, model, options));
+        indexDiffs.push(
+          await syncModelIndexes(db, model, {
+            ...options,
+            collectionNamePolicy,
+          }),
+        );
       }
 
       return {
         models: indexDiffs,
       };
     },
+    withSession(session) {
+      return {
+        ...createRepositories(db, models, {
+          collectionNamePolicy,
+          session,
+        }),
+        session,
+      } as TransactionalDb<Models>;
+    },
+    async transaction(callback, transactionOptions) {
+      const session = options.mongoClient.startSession();
+
+      try {
+        return await session.withTransaction(
+          () => callback(definedDb.withSession(session)),
+          transactionOptions,
+        );
+      } finally {
+        await session.endSession();
+      }
+    },
   } as DefinedDb<Models>;
+
+  return definedDb;
+}
+
+function createRepositories<const Models extends readonly AnyModelDefinition[]>(
+  db: Db,
+  models: Models,
+  options: {
+    collectionNamePolicy?: CollectionNamePolicy | null;
+    session?: ClientSession;
+  } = {},
+): DefinedRepositories<Models> {
+  const repositories: Record<string, Repository<object, unknown>> = {};
+
+  for (const model of models) {
+    repositories[model.name] = createMongoZodCollection(db, model, {
+      ...(options.collectionNamePolicy === undefined
+        ? {}
+        : { collectionNamePolicy: options.collectionNamePolicy }),
+      ...(options.session === undefined ? {} : { session: options.session }),
+    }) as Repository<object, unknown>;
+  }
+
+  return repositories as DefinedRepositories<Models>;
+}
+
+function validateModelCollectionNames(
+  models: readonly AnyModelDefinition[],
+  policy: CollectionNamePolicy | null,
+): void {
+  for (const model of models) {
+    assertCollectionNamePolicy({
+      modelName: model.name,
+      collectionName: model.collectionName,
+      policy,
+      operation: "defineDb",
+    });
+  }
+}
+
+function assertCollectionNamePolicy(context: {
+  modelName: string;
+  collectionName: string;
+  policy: CollectionNamePolicy | null;
+  operation: ZogOperation;
+}): void {
+  if (context.policy === null || collectionNameMatchesPolicy(context.collectionName, context.policy)) {
+    return;
+  }
+
+  throw new ZogError({
+    modelName: context.modelName,
+    collectionName: context.collectionName,
+    operation: context.operation,
+    details: `collection name must be ${context.policy} case`,
+  });
+}
+
+function collectionNameMatchesPolicy(
+  collectionName: string,
+  policy: CollectionNamePolicy,
+): boolean {
+  switch (policy) {
+    case "camel":
+      return /^[a-z][A-Za-z0-9]*$/.test(collectionName);
+    case "snake":
+      return /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/.test(collectionName);
+    case "pascal":
+      return /^[A-Z][A-Za-z0-9]*$/.test(collectionName);
+  }
 }
 
 function createParsedCursor<T extends object>(
@@ -757,6 +1021,134 @@ function createParsedCursor<T extends object>(
 
     [Symbol.asyncIterator]: iterate,
   };
+}
+
+function withSession<Options extends object>(
+  session: ClientSession | undefined,
+  options: Options | undefined,
+): Options | undefined {
+  if (!session) {
+    return options;
+  }
+
+  return {
+    ...(options ?? {}),
+    session,
+  } as Options;
+}
+
+function parsePatchMerge<T extends object>(
+  model: ModelRuntime<T>,
+  existing: T,
+  patch: Partial<T>,
+  id: string,
+): T {
+  if (patchTouchesPrimaryKey(model, patch)) {
+    throw new ZogError({
+      modelName: model.modelName,
+      collectionName: model.collectionName,
+      operation: "update",
+      details: `patch cannot change primary key ${model.primaryKey}`,
+    });
+  }
+
+  try {
+    return model.schema.parse({
+      ...existing,
+      ...patch,
+      [model.primaryKey]: id,
+    });
+  } catch (cause) {
+    throw wrapError(model, "update", cause);
+  }
+}
+
+function toMongoSetPatch<T extends object>(
+  model: ModelRuntime<T>,
+  parsed: T,
+  patch: Partial<T>,
+): Record<string, unknown> {
+  const fields = new Set(Object.keys(patch));
+  if (model.timestamps) {
+    fields.add(model.timestamps.updatedAt);
+  }
+
+  const parsedRecord = parsed as Record<string, unknown>;
+  const set: Record<string, unknown> = {};
+
+  for (const field of fields) {
+    if (field === model.primaryKey || field === "_id") {
+      continue;
+    }
+
+    set[field] = parsedRecord[field];
+  }
+
+  return set;
+}
+
+function patchTouchesPrimaryKey<T extends object>(
+  model: ModelRuntime<T>,
+  patch: Partial<T>,
+): boolean {
+  return (
+    Object.prototype.hasOwnProperty.call(patch, model.primaryKey) ||
+    Object.prototype.hasOwnProperty.call(patch, "_id")
+  );
+}
+
+type TimestampMode = "insert" | "update" | "none";
+
+function applyWriteTimestamps<T extends object>(
+  model: ModelRuntime<T>,
+  value: unknown,
+  mode: TimestampMode,
+): unknown {
+  if (!model.timestamps || mode === "none" || !isPlainRecord(value)) {
+    return value;
+  }
+
+  const timestamp = model.timestamps.now();
+  const next = {
+    ...value,
+    [model.timestamps.updatedAt]: timestamp,
+  };
+
+  if (mode === "insert") {
+    next[model.timestamps.createdAt] = timestamp;
+  }
+
+  return next;
+}
+
+function withUpdateTimestamp<T extends object>(
+  model: ModelRuntime<T>,
+  update: UpdateFilter<T & Document> | Document[],
+): UpdateFilter<T & Document> | Document[] {
+  if (!model.timestamps) {
+    return update;
+  }
+
+  const timestamp = model.timestamps.now();
+
+  if (Array.isArray(update)) {
+    return [
+      ...update,
+      {
+        $set: {
+          [model.timestamps.updatedAt]: timestamp,
+        },
+      },
+    ];
+  }
+
+  return {
+    ...(update as Document),
+    $set: {
+      ...(isPlainRecord((update as Document).$set) ? (update as Document).$set : {}),
+      [model.timestamps.updatedAt]: timestamp,
+    },
+  } as UpdateFilter<T & Document>;
 }
 
 function toMongoFilter<T extends object>(

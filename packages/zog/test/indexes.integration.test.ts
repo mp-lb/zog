@@ -83,4 +83,42 @@ describeWithMongo("index management integration", () => {
     );
     await expect(collection.indexExists("users_legacy_name")).resolves.toBe(false);
   });
+
+  it("syncs indexes for a real MongoDB collection that does not exist yet", async () => {
+    const model = createModel("feedbackItems", schema, {
+      primaryKey: "id",
+      indexes: [index({ createdAt: -1 }, { name: "createdAt_desc" })],
+    });
+    const database = client.db(databaseName);
+    const collection = database.collection("feedbackItems");
+    await collection.drop().catch(() => undefined);
+    const db = defineDb([model] as const, {
+      mongoClient: client,
+      databaseName,
+    });
+
+    const dryRun = await db.syncIndexes({ dryRun: true });
+
+    expect(dryRun.models[0]).toMatchObject({
+      missing: [{ name: "createdAt_desc" }],
+      changed: [],
+      extra: [],
+    });
+
+    const synced = await db.syncIndexes();
+
+    expect(synced.models[0]).toMatchObject({
+      missing: [{ name: "createdAt_desc" }],
+      changed: [],
+      extra: [],
+    });
+    await expect(collection.indexes()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "createdAt_desc",
+          key: { createdAt: -1 },
+        }),
+      ]),
+    );
+  });
 });
