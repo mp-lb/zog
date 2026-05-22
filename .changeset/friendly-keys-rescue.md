@@ -1,4 +1,6 @@
+---
 "@mp-lb/zog": patch
+---
 
 Handle legacy Mongo documents with app primary keys
 
