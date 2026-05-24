@@ -1,5 +1,11 @@
 # @mp-lb/zog
 
+## 0.3.0
+
+### Minor Changes
+
+- ec50f47: Add collection name compatibility checks for legacy naming schemes
+
 ## 0.2.1
 
 ### Patch Changes
