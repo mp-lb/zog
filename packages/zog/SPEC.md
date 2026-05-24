@@ -84,13 +84,23 @@ export const db = defineDb([storeModel] as const, {
   mongoClient,
   databaseName,
   collectionNamePolicy: "snake",
+  collectionNameCompatibility: "error",
 });
 ```
 
 Supported policies are `"camel"`, `"snake"`, and `"pascal"`. The default is
 `null`, which disables enforcement. When a policy is enabled, Zog throws before
 creating repositories or index helpers for collection names that do not match
-the policy. Direct MongoDB driver access remains outside Zog's boundary.
+the policy.
+
+`collectionNameCompatibility` defaults to `"off"`. Use `"error"` during
+migrations or deployments that need a compatibility check for legacy collection
+names. Zog lists existing MongoDB collections before repository and index
+operations that touch MongoDB, then throws if a different collection has the
+same normalized identity as the model collection name. For example, a model
+targeting `store_metadata` will reject an existing `store-metadata` collection
+instead of accidentally creating a second collection. Direct MongoDB driver
+access remains outside Zog's boundary.
 
 Example database:
 

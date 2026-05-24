@@ -240,6 +240,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
   });
   const collection = db.collection(collectionName) as Collection<Document>;
   const session = options.session;
+  const collectionNameCompatibility = options.collectionNameCompatibility ?? "off";
   const runtime: ModelRuntime<T> = {
     modelName: model.name,
     collectionName,
@@ -261,6 +262,15 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
   async function parseRead(raw: Document | null, operation: ZogOperation): Promise<T | null> {
     return parseReadDocument(raw, operation);
+  }
+
+  async function assertCollection(operation: ZogOperation): Promise<void> {
+    await assertCollectionNameCompatibility(db, {
+      modelName: model.name,
+      collectionName,
+      collectionNameCompatibility,
+      operation,
+    });
   }
 
   function parseWrite(
@@ -288,6 +298,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async findById(id, options) {
+      await assertCollection("findById");
       const raw =
         (await collection.findOne(
           { _id: id } as unknown as MongoFilter<Document>,
@@ -297,6 +308,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     },
 
     async findOne(filter = {}, options) {
+      await assertCollection("findOne");
       const raw = await collection.findOne(
         toMongoFilter(runtime, filter),
         withSession(session, options) as MongoFindOneOptions,
@@ -306,6 +318,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async findMany(filter, options) {
       try {
+        await assertCollection("findMany");
         const rawDocuments = await collection
           .find(
             toMongoFilter(runtime, filter),
@@ -329,6 +342,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const document = parseWrite(value, "insert", "insert");
 
       try {
+        await assertCollection("insert");
         return await collection.insertOne(
           document as OptionalUnlessRequiredId<Document>,
           withSession(session, options),
@@ -342,6 +356,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const documents = values.map((value) => parseWrite(value, "insert", "insert"));
 
       try {
+        await assertCollection("insert");
         return await collection.insertMany(
           documents as OptionalUnlessRequiredId<Document>[],
           withSession(session, options),
@@ -355,6 +370,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const document = parseWrite(value, "replace", "update");
 
       try {
+        await assertCollection("replace");
         return await collection.replaceOne(
           toMongoFilter(runtime, filter),
           document,
@@ -367,6 +383,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async updateOne(filter, update, options) {
       try {
+        await assertCollection("update");
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
         return await collection.updateOne(
           toMongoFilter(runtime, filter),
@@ -380,6 +397,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async updateMany(filter, update, options) {
       try {
+        await assertCollection("update");
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
         return await collection.updateMany(
           toMongoFilter(runtime, filter),
@@ -393,6 +411,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async findOneAndUpdate(filter, update, options) {
       try {
+        await assertCollection("update");
         assertUpdateDoesNotChangePrimaryKey(runtime, update, "updateById");
         const timestampedUpdate = withUpdateTimestamp(runtime, update);
         const raw = await (collection.findOneAndUpdate as unknown as (
@@ -414,6 +433,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const document = parseWrite(value, "replace", "update");
 
       try {
+        await assertCollection("replace");
         const raw = await (collection.findOneAndReplace as unknown as (
           filter: MongoFilter<Document>,
           replacement: Document,
@@ -431,6 +451,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async findOneAndDelete(filter, options) {
       try {
+        await assertCollection("deleteById");
         const raw = await (collection.findOneAndDelete as unknown as (
           filter: MongoFilter<Document>,
           options?: ParsedFindOneAndDeleteOptions,
@@ -446,6 +467,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async deleteOne(filter = {}, options) {
       try {
+        await assertCollection("deleteById");
         return await collection.deleteOne(
           toMongoFilter(runtime, filter),
           withSession(session, options),
@@ -457,6 +479,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async deleteMany(filter = {}, options) {
       try {
+        await assertCollection("deleteById");
         return await collection.deleteMany(
           toMongoFilter(runtime, filter),
           withSession(session, options),
@@ -468,6 +491,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 
     async bulkWrite(operations, options) {
       try {
+        await assertCollection("replace");
         return await collection.bulkWrite(operations, withSession(session, options));
       } catch (cause) {
         throw wrapError(runtime, "replace", cause);
@@ -479,6 +503,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const document = parseWrite(timestamped as Input, "insert", "none");
 
       try {
+        await assertCollection("insert");
         await collection.insertOne(
           document as OptionalUnlessRequiredId<Document>,
           withSession(session, undefined),
@@ -495,6 +520,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
       const document = parseWrite(timestamped as Input, "replace", "none");
 
       try {
+        await assertCollection("replace");
         await collection.replaceOne(
           toMongoFilter(runtime, {
             [runtime.primaryKey]: (parsed as Record<string, unknown>)[runtime.primaryKey],
@@ -589,7 +615,10 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
 export async function ensureModelIndexes<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
-  options: { collectionNamePolicy?: CollectionNamePolicy | null } = {},
+  options: {
+    collectionNamePolicy?: CollectionNamePolicy | null;
+    collectionNameCompatibility?: CollectionNameCompatibility;
+  } = {},
 ): Promise<void> {
   assertCollectionNamePolicy({
     modelName: model.name,
@@ -600,6 +629,12 @@ export async function ensureModelIndexes<Model extends AnyModelDefinition>(
   const collection = db.collection(model.collectionName);
 
   try {
+    await assertCollectionNameCompatibility(db, {
+      modelName: model.name,
+      collectionName: model.collectionName,
+      collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
+      operation: "ensureIndexes",
+    });
     await model.beforeEnsureIndexes?.(collection);
 
     if (model.indexes.length > 0) {
@@ -618,7 +653,10 @@ export async function ensureModelIndexes<Model extends AnyModelDefinition>(
 export async function diffModelIndexes<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
-  options: { collectionNamePolicy?: CollectionNamePolicy | null } = {},
+  options: {
+    collectionNamePolicy?: CollectionNamePolicy | null;
+    collectionNameCompatibility?: CollectionNameCompatibility;
+  } = {},
 ): Promise<ModelIndexDiff> {
   assertCollectionNamePolicy({
     modelName: model.name,
@@ -629,6 +667,12 @@ export async function diffModelIndexes<Model extends AnyModelDefinition>(
   const collection = db.collection(model.collectionName);
 
   try {
+    await assertCollectionNameCompatibility(db, {
+      modelName: model.name,
+      collectionName: model.collectionName,
+      collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
+      operation: "diffIndexes",
+    });
     const existingIndexes = await listExistingIndexes(collection);
     return diffIndexDescriptions(
       model.name,
@@ -670,6 +714,7 @@ function isNamespaceNotFoundError(error: unknown): boolean {
 
 export type SyncIndexesOptions = {
   collectionNamePolicy?: CollectionNamePolicy | null;
+  collectionNameCompatibility?: CollectionNameCompatibility;
   dryRun?: boolean;
   dropExtra?: boolean;
 };
@@ -690,12 +735,25 @@ export async function syncModelIndexes<Model extends AnyModelDefinition>(
   const dropExtra = options.dropExtra ?? true;
 
   try {
+    await assertCollectionNameCompatibility(db, {
+      modelName: model.name,
+      collectionName: model.collectionName,
+      collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
+      operation: "syncIndexes",
+    });
+
     if (dryRun) {
-      return await diffModelIndexes(db, model);
+      return await diffModelIndexes(db, model, {
+        collectionNamePolicy: options.collectionNamePolicy ?? null,
+        collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
+      });
     }
 
     await model.beforeEnsureIndexes?.(collection);
-    const diff = await diffModelIndexes(db, model);
+    const diff = await diffModelIndexes(db, model, {
+      collectionNamePolicy: options.collectionNamePolicy ?? null,
+      collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
+    });
     const indexesToDrop = dropExtra
       ? [...diff.changed, ...diff.extra]
       : diff.changed;
@@ -788,15 +846,18 @@ export type DefineDbOptions = {
   mongoClient: MongoClient;
   databaseName: string;
   collectionNamePolicy?: CollectionNamePolicy | null;
+  collectionNameCompatibility?: CollectionNameCompatibility;
 };
 
 export type CreateMongoZodCollectionOptions = {
   collectionName?: string;
   collectionNamePolicy?: CollectionNamePolicy | null;
+  collectionNameCompatibility?: CollectionNameCompatibility;
   session?: ClientSession;
 };
 
 export type CollectionNamePolicy = "camel" | "snake" | "pascal";
+export type CollectionNameCompatibility = "off" | "error";
 
 type DefinedRepositories<Models extends readonly AnyModelDefinition[]> = {
   [Model in Models[number] as Model["name"]]: Repository<
@@ -828,22 +889,32 @@ export function defineDb<const Models extends readonly AnyModelDefinition[]>(
 ): DefinedDb<Models> {
   const db = options.mongoClient.db(options.databaseName);
   const collectionNamePolicy = options.collectionNamePolicy ?? null;
+  const collectionNameCompatibility = options.collectionNameCompatibility ?? "off";
   validateModelCollectionNames(models, collectionNamePolicy);
   const repositories = createRepositories(db, models, {
     collectionNamePolicy,
+    collectionNameCompatibility,
   });
 
   const definedDb = {
     ...repositories,
     async ensureIndexes() {
       for (const model of models) {
-        await ensureModelIndexes(db, model, { collectionNamePolicy });
+        await ensureModelIndexes(db, model, {
+          collectionNamePolicy,
+          collectionNameCompatibility,
+        });
       }
     },
     async diffIndexes() {
       return {
         models: await Promise.all(
-          models.map((model) => diffModelIndexes(db, model, { collectionNamePolicy })),
+          models.map((model) =>
+            diffModelIndexes(db, model, {
+              collectionNamePolicy,
+              collectionNameCompatibility,
+            }),
+          ),
         ),
       };
     },
@@ -855,6 +926,7 @@ export function defineDb<const Models extends readonly AnyModelDefinition[]>(
           await syncModelIndexes(db, model, {
             ...options,
             collectionNamePolicy,
+            collectionNameCompatibility,
           }),
         );
       }
@@ -867,6 +939,7 @@ export function defineDb<const Models extends readonly AnyModelDefinition[]>(
       return {
         ...createRepositories(db, models, {
           collectionNamePolicy,
+          collectionNameCompatibility,
           session,
         }),
         session,
@@ -894,6 +967,7 @@ function createRepositories<const Models extends readonly AnyModelDefinition[]>(
   models: Models,
   options: {
     collectionNamePolicy?: CollectionNamePolicy | null;
+    collectionNameCompatibility?: CollectionNameCompatibility;
     session?: ClientSession;
   } = {},
 ): DefinedRepositories<Models> {
@@ -904,6 +978,9 @@ function createRepositories<const Models extends readonly AnyModelDefinition[]>(
       ...(options.collectionNamePolicy === undefined
         ? {}
         : { collectionNamePolicy: options.collectionNamePolicy }),
+      ...(options.collectionNameCompatibility === undefined
+        ? {}
+        : { collectionNameCompatibility: options.collectionNameCompatibility }),
       ...(options.session === undefined ? {} : { session: options.session }),
     }) as Repository<object, unknown>;
   }
@@ -941,6 +1018,50 @@ function assertCollectionNamePolicy(context: {
     operation: context.operation,
     details: `collection name must be ${context.policy} case`,
   });
+}
+
+async function assertCollectionNameCompatibility(
+  db: Db,
+  context: {
+    modelName: string;
+    collectionName: string;
+    collectionNameCompatibility: CollectionNameCompatibility;
+    operation: ZogOperation;
+  },
+): Promise<void> {
+  if (context.collectionNameCompatibility === "off") {
+    return;
+  }
+
+  const expectedIdentity = normalizeCollectionNameIdentity(context.collectionName);
+  const collections = await db
+    .listCollections({}, { nameOnly: true })
+    .toArray();
+  const conflictingCollection = collections.find((collection) => {
+    const name = collection.name;
+    return (
+      typeof name === "string" &&
+      name !== context.collectionName &&
+      normalizeCollectionNameIdentity(name) === expectedIdentity
+    );
+  });
+
+  if (!conflictingCollection) {
+    return;
+  }
+
+  throw new ZogError({
+    modelName: context.modelName,
+    collectionName: context.collectionName,
+    operation: context.operation,
+    details: `collection name conflicts with existing collection ${JSON.stringify(
+      conflictingCollection.name,
+    )}`,
+  });
+}
+
+function normalizeCollectionNameIdentity(collectionName: string): string {
+  return collectionName.replace(/[-_\s]+/g, "").toLowerCase();
 }
 
 function collectionNameMatchesPolicy(

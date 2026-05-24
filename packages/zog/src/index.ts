@@ -32,6 +32,7 @@ export {
 } from "./repository.js";
 export type {
   CreateMongoZodCollectionOptions,
+  CollectionNameCompatibility,
   CollectionNamePolicy,
   DefinedDb,
   DefineDbOptions,

@@ -801,6 +801,52 @@ describe("Zog repository", () => {
     ).toThrow(/collection name must be snake case/);
   });
 
+  it("errors on existing compatible collections that only differ by naming scheme", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata").documents.set(user.id, {
+      ...user,
+      _id: user.id,
+    });
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+      collectionNamePolicy: "snake",
+      collectionNameCompatibility: "error",
+    });
+
+    await expect(db.stores.insert(user)).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "insert",
+      details: 'collection name conflicts with existing collection "store-metadata"',
+    });
+    expect(fake.collection("store_metadata").documents.size).toBe(0);
+  });
+
+  it("errors on compatible collection names before index creation", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      primaryKey: "id",
+      indexes: [index({ email: 1 }, { name: "email_1" })],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata");
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+      collectionNameCompatibility: "error",
+    });
+
+    await expect(db.ensureIndexes()).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "ensureIndexes",
+    });
+    expect(fake.collection("store_metadata").createdIndexes).toEqual([]);
+  });
+
   it("runs beforeEnsureIndexes before creating configured indexes", async () => {
     const events: string[] = [];
     const model = createModel("users", userSchema, {
@@ -897,6 +943,8 @@ function createFakeMongoClient() {
 
   const db = {
     collection,
+    listCollections: () =>
+      new FakeCursor([...collections.keys()].map((name) => ({ name }))),
   } as unknown as Db;
 
   const client = {
