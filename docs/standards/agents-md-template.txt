@@ -56,12 +56,13 @@ For package releases, read the relevant release standard:
 ## Tech stack
 
 This tech is core and should be used **religiously**:
+- Zod
 - shadcn/ui and utility functions
+- shadcn/ui CLI
 - Tailwind CSS
 - tRPC
 - tRPC's tanstack style hooks
-
-Add new shadcn/ui components using the CLI.
+- react-hook-form with zod resolver
 
 ## Code style
 
