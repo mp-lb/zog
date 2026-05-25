@@ -839,12 +839,92 @@ describe("Zog repository", () => {
       databaseName: "test",
       collectionNameCompatibility: "error",
     });
-
     await expect(db.ensureIndexes()).rejects.toMatchObject({
       name: "ZogError",
       operation: "ensureIndexes",
     });
     expect(fake.collection("store_metadata").createdIndexes).toEqual([]);
+  });
+
+  it("uses an existing legacy collection declared by the model", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata").documents.set(user.id, {
+      ...user,
+      _id: user.id,
+    });
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+    fake.collection("store_metadata").namespaceExists = false;
+
+    await expect(db.stores.findById(user.id)).resolves.toEqual(user);
+    await expect(db.stores.find({}).toArray()).resolves.toEqual([user]);
+
+    await db.stores.insert({
+      ...user,
+      id: "user_2",
+      email: "second@example.com",
+    });
+    expect(fake.collection("store-metadata").documents.has("user_2")).toBe(true);
+    expect(fake.collection("store_metadata").documents.size).toBe(0);
+  });
+
+  it("uses declared legacy collections for index management", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+      indexes: [index({ email: 1 }, { name: "email_1" })],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata");
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+    fake.collection("store_metadata").namespaceExists = false;
+
+    await expect(db.ensureIndexes()).resolves.toBeUndefined();
+    expect(fake.collection("store-metadata").createdIndexes).toEqual([
+      expect.objectContaining({ name: "email_1" }),
+    ]);
+    expect(fake.collection("store_metadata").createdIndexes).toEqual([]);
+  });
+
+  it("rejects split current and legacy collections", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store_metadata").documents.set("current", {
+      ...user,
+      _id: "current",
+      email: "current@example.com",
+    });
+    fake.collection("store-metadata").documents.set("legacy", {
+      ...user,
+      _id: "legacy",
+      email: "legacy@example.com",
+    });
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(db.stores.findOne({})).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "findOne",
+      details:
+        'collection name is split between current collection "store_metadata" and legacy collection "store-metadata"',
+    });
   });
 
   it("runs beforeEnsureIndexes before creating configured indexes", async () => {
@@ -944,7 +1024,11 @@ function createFakeMongoClient() {
   const db = {
     collection,
     listCollections: () =>
-      new FakeCursor([...collections.keys()].map((name) => ({ name }))),
+      new FakeCursor(
+        [...collections.entries()]
+          .filter(([, collection]) => collection.namespaceExists)
+          .map(([name]) => ({ name })),
+      ),
   } as unknown as Db;
 
   const client = {
@@ -956,7 +1040,11 @@ function createFakeMongoClient() {
     },
   } as unknown as MongoClient;
 
-  return { client, collection, sessions };
+  return {
+    client,
+    collection,
+    sessions,
+  };
 }
 
 function createClock(values: string[]): () => string {

@@ -72,9 +72,14 @@ Models may use a logical model name and a different physical Mongo collection:
 ```ts
 export const storeModel = createModel("stores", storeSchema, {
   collectionName: "store_metadata",
+  legacyCollectionNames: ["store-metadata"],
   primaryKey: "id",
 });
 ```
+
+If `store_metadata` does not exist yet but a declared legacy name does, Zog uses
+the legacy collection for repository and index operations. If both the current
+and legacy collection names exist, Zog throws because the data is split.
 
 Applications may opt into collection name policy enforcement at the Zog
 boundary:
@@ -94,13 +99,13 @@ creating repositories or index helpers for collection names that do not match
 the policy.
 
 `collectionNameCompatibility` defaults to `"off"`. Use `"error"` during
-migrations or deployments that need a compatibility check for legacy collection
-names. Zog lists existing MongoDB collections before repository and index
-operations that touch MongoDB, then throws if a different collection has the
-same normalized identity as the model collection name. For example, a model
-targeting `store_metadata` will reject an existing `store-metadata` collection
-instead of accidentally creating a second collection. Direct MongoDB driver
-access remains outside Zog's boundary.
+migrations or deployments that need a naming-scheme guard beyond the explicit
+`legacyCollectionNames` list. Zog lists existing MongoDB collections before
+repository and index operations that touch MongoDB, then throws if an
+undeclared collection has the same normalized identity as the model collection
+name. For example, a model targeting `store_metadata` will reject an
+undeclared `store-metadata` collection instead of accidentally creating a second
+collection. Direct MongoDB driver access remains outside Zog's boundary.
 
 Example database:
 

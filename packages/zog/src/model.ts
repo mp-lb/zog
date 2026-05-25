@@ -35,6 +35,7 @@ export type ModelOptions<
 > = {
   primaryKey: PrimaryKey;
   collectionName?: string;
+  legacyCollectionNames?: readonly string[];
   indexes?: readonly ModelIndex[];
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
@@ -49,6 +50,7 @@ export type ModelDefinition<
 > = {
   name: Name;
   collectionName: string;
+  legacyCollectionNames: readonly string[];
   schema: Schema;
   primaryKey: PrimaryKey;
   indexes: readonly ModelIndex[];
@@ -61,6 +63,7 @@ export type ModelDefinition<
 export type AnyModelDefinition = {
   name: string;
   collectionName: string;
+  legacyCollectionNames: readonly string[];
   schema: ZogSchema;
   primaryKey: string;
   indexes: readonly ModelIndex[];
@@ -89,6 +92,7 @@ export function createModel<
   const definition = {
     name,
     collectionName: options.collectionName ?? name,
+    legacyCollectionNames: options.legacyCollectionNames ?? [],
     schema,
     primaryKey: options.primaryKey,
     indexes: options.indexes ?? [],
