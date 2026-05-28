@@ -1,5 +1,11 @@
 # @mp-lb/zog
 
+## 0.5.0
+
+### Minor Changes
+
+- c2929ac: Add declarative `legacyKeyRenames` for read-time stored key renames, including nested paths through arrays.
+
 ## 0.4.0
 
 ### Minor Changes
