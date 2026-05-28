@@ -12,4 +12,5 @@ Docs:
 - [Quick start](docs/quick-start.md) for the basic model and repository flow.
 - [Schema evolution](docs/schema-evolution.md) for legacy collection names, key renames, and custom normalization.
 - [Indexes](docs/indexes.md) for declaring, diffing, and syncing MongoDB indexes.
+- [References](docs/references.md) for modeling fields that contain another model's primary key.
 - [Model diagrams](docs/diagrams.md) for rendering schemas and references as ASCII or Mermaid.

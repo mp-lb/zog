@@ -1,0 +1,103 @@
+---
+title: References
+description: Model fields that contain another Zog model's primary key.
+---
+
+References describe fields that contain another model's primary key. They do
+not enforce that the referenced document exists in MongoDB, but they do verify
+that your model definitions agree with your Zod schemas.
+
+```ts
+import { createModel, ref } from "@mp-lb/zog";
+import { z } from "zod";
+
+const userSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+});
+
+export const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+});
+
+const postSchema = z.object({
+  id: z.string(),
+  authorId: z.string(),
+});
+
+export const postModel = createModel("posts", postSchema, {
+  primaryKey: "id",
+  references: [ref("authorId", userModel)],
+});
+```
+
+When `postModel` is created, Zog checks that `authorId` exists, is required,
+is non-null, and has the same schema type as `userModel`'s primary key.
+
+## Embedded Documents
+
+Reference paths can point through embedded documents and arrays with dotted
+paths and `[]` array markers.
+
+```ts
+const teamSchema = z.object({
+  id: z.string(),
+  members: z.array(
+    z.object({
+      userId: z.string(),
+      role: z.enum(["owner", "member"]),
+    }),
+  ),
+});
+
+export const teamModel = createModel("teams", teamSchema, {
+  primaryKey: "id",
+  references: [ref("members[].userId", userModel)],
+});
+```
+
+Nested arrays work the same way:
+
+```ts
+ref("teams[].members[].userId", userModel);
+```
+
+## Optional And Nullable References
+
+References are required and non-null by default. Mark optional or nullable
+references explicitly so the model documents the intended shape.
+
+```ts
+const postSchema = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  reviewedByUserId: z.string().optional(),
+  deletedByUserId: z.string().nullable(),
+});
+
+export const postModel = createModel("posts", postSchema, {
+  primaryKey: "id",
+  references: [
+    ref("authorId", userModel),
+    ref("reviewedByUserId", userModel, { optional: true }),
+    ref("deletedByUserId", userModel, { nullable: true }),
+  ],
+});
+```
+
+## What Zog Checks
+
+For each reference, Zog verifies that:
+
+- the referenced path exists in the source model's schema
+- every object and array segment in the path is valid
+- the source field is required unless `{ optional: true }` is set
+- the source field is non-null unless `{ nullable: true }` is set
+- the source field type matches the target model's primary key type
+- the target model's primary key is required and non-null
+
+Zog does not check whether the referenced document exists in MongoDB. That
+would require database reads and application-specific consistency choices.
+
+Reference validation requires Zod 4 schemas because Zog introspects schema
+internals for this feature.

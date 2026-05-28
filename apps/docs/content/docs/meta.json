@@ -1,4 +1,4 @@
 {
   "title": "Zog",
-  "pages": ["index", "schema-evolution", "indexes", "diagrams"]
+  "pages": ["index", "schema-evolution", "indexes", "references", "diagrams"]
 }

@@ -1,9 +1,12 @@
-# Model diagrams
+# Model Diagrams
 
 Zog can render model schemas and validated references as ASCII or Mermaid diagrams.
 
 The diagram API is designed to run inside your app or an app-owned script. That keeps
 Zog out of your TypeScript loader, path alias, bundler, and environment setup.
+
+If your models declare references, diagrams include those references as annotations
+or relationship edges.
 
 ```ts
 // scripts/write-model-diagram.ts

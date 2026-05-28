@@ -7,61 +7,8 @@ Zog can render model schemas and validated references as ASCII or Mermaid
 diagrams. This is useful for documenting MongoDB collections without turning
 Zog into an ORM or requiring a CLI to understand your TypeScript project.
 
-## Declare References
-
-References describe fields that contain another model's primary key. Zog
-validates the reference against the Zod schema when the model is created.
-
-```ts
-import { createModel, ref } from "@mp-lb/zog";
-import { z } from "zod";
-
-const userSchema = z.object({
-  id: z.string(),
-  email: z.string().email(),
-});
-
-export const userModel = createModel("users", userSchema, {
-  primaryKey: "id",
-});
-
-const postSchema = z.object({
-  id: z.string(),
-  authorId: z.string(),
-  comments: z.array(
-    z.object({
-      authorId: z.string(),
-      body: z.string(),
-    }),
-  ),
-});
-
-export const postModel = createModel("posts", postSchema, {
-  primaryKey: "id",
-  references: [
-    ref("authorId", userModel),
-    ref("comments[].authorId", userModel),
-  ],
-});
-```
-
-References can point through embedded documents and arrays with dotted paths
-and `[]` array markers.
-
-```ts
-ref("teams[].members[].userId", userModel);
-ref("metadata.reviewedByUserId", userModel, { optional: true });
-ref("deletedByUserId", userModel, { nullable: true });
-```
-
-By default, reference fields must exist, be required, be non-null, and match the
-target primary key type. Optional and nullable references must be marked
-explicitly.
-
-Reference validation requires Zod 4 schemas because Zog introspects schema
-internals for this feature.
-
-## Render Diagrams
+If your models declare references, diagrams include those references as
+annotations or relationship edges.
 
 Use the pure renderers when you want to print or compose the output yourself:
 
@@ -136,3 +83,6 @@ await writeDbDiagramFile("docs/data-models.mmd", models, {
 ```
 
 For one model, use `renderModelDiagram` or `writeModelDiagramFile`.
+
+Diagram rendering requires Zod 4 schemas because it introspects schema
+internals for this feature.
