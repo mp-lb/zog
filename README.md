@@ -22,3 +22,9 @@ pnpm typecheck
 pnpm build
 zap up
 ```
+
+## Docs
+
+- [Quick start](docs/quick-start.md) covers the basic model and repository flow.
+- [Schema evolution](docs/schema-evolution.md) covers legacy collection names, key renames, and custom normalization.
+- [Indexes](docs/indexes.md) covers declaring, diffing, and syncing MongoDB indexes.

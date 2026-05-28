@@ -1,0 +1,71 @@
+---
+title: Indexes
+description: Declare, diff, and sync MongoDB indexes next to the model that owns them.
+---
+
+Define indexes on the model:
+
+```ts
+import { createModel, defineDb, uniqueIndex } from "@mp-lb/zog";
+
+const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+  indexes: [uniqueIndex({ email: 1 }, { name: "users_email_unique" })],
+});
+```
+
+Then create declared indexes from the database adapter:
+
+```ts
+const db = defineDb([userModel] as const, {
+  mongoClient,
+  databaseName: "app",
+});
+
+await db.ensureIndexes();
+```
+
+`ensureIndexes()` is additive: it creates declared indexes and leaves existing
+indexes alone.
+
+## Diff And Sync
+
+Use the diff and sync APIs when you want to reconcile MongoDB with your model
+definitions:
+
+```ts
+const diff = await db.diffIndexes();
+
+const dryRun = await db.syncIndexes({ dryRun: true });
+
+await db.syncIndexes();
+```
+
+`diffIndexes()` reports matching, missing, changed, and extra indexes for each
+model. `syncIndexes()` drops changed indexes, creates missing and changed
+declared indexes, and drops undeclared extra indexes by default.
+
+Use `{ dropExtra: false }` to keep extra indexes while still fixing changed
+declared indexes:
+
+```ts
+await db.syncIndexes({ dropExtra: false });
+```
+
+## Legacy Cleanup
+
+For legacy index cleanup that needs custom MongoDB calls, use
+`beforeEnsureIndexes`:
+
+```ts
+const fileModel = createModel("files", fileSchema, {
+  primaryKey: "id",
+  beforeEnsureIndexes: async (collection) => {
+    await collection.dropIndex("ownerId_1");
+  },
+  indexes: [uniqueIndex({ workspaceId: 1, path: 1 })],
+});
+```
+
+`beforeEnsureIndexes` runs before Zog creates the declared indexes for that
+model.

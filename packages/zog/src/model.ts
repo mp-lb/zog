@@ -1,5 +1,7 @@
 import type { Collection, Document } from "mongodb";
 import type { ModelIndex } from "./indexes.js";
+import type { ModelReference } from "./references.js";
+import { validateModelReferences } from "./references.js";
 
 export type ObjectIdPolicy = "reject" | "stringify";
 
@@ -42,6 +44,7 @@ export type ModelOptions<
   collectionName?: string;
   legacyCollectionNames?: readonly string[];
   legacyKeyRenames?: readonly LegacyKeyRename[];
+  references?: readonly ModelReference[];
   indexes?: readonly ModelIndex[];
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
@@ -58,6 +61,7 @@ export type ModelDefinition<
   collectionName: string;
   legacyCollectionNames: readonly string[];
   legacyKeyRenames: readonly LegacyKeyRename[];
+  references: readonly ModelReference[];
   schema: Schema;
   primaryKey: PrimaryKey;
   indexes: readonly ModelIndex[];
@@ -72,6 +76,7 @@ export type AnyModelDefinition = {
   collectionName: string;
   legacyCollectionNames: readonly string[];
   legacyKeyRenames: readonly LegacyKeyRename[];
+  references: readonly ModelReference[];
   schema: ZogSchema;
   primaryKey: string;
   indexes: readonly ModelIndex[];
@@ -102,13 +107,14 @@ export function createModel<
     collectionName: options.collectionName ?? name,
     legacyCollectionNames: options.legacyCollectionNames ?? [],
     legacyKeyRenames: options.legacyKeyRenames ?? [],
+    references: options.references ?? [],
     schema,
     primaryKey: options.primaryKey,
     indexes: options.indexes ?? [],
     objectIdPolicy: options.objectIdPolicy ?? "reject",
   };
 
-  return {
+  const model = {
     ...definition,
     ...(options.normalizeLegacy === undefined
       ? {}
@@ -123,4 +129,8 @@ export function createModel<
     }
       ? { timestamps: Timestamps }
       : object);
+
+  validateModelReferences(model);
+
+  return model;
 }

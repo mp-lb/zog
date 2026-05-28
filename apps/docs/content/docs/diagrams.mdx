@@ -1,0 +1,138 @@
+---
+title: Model Diagrams
+description: Render Zog models, embedded documents, indexes, and references as ASCII or Mermaid diagrams.
+---
+
+Zog can render model schemas and validated references as ASCII or Mermaid
+diagrams. This is useful for documenting MongoDB collections without turning
+Zog into an ORM or requiring a CLI to understand your TypeScript project.
+
+## Declare References
+
+References describe fields that contain another model's primary key. Zog
+validates the reference against the Zod schema when the model is created.
+
+```ts
+import { createModel, ref } from "@mp-lb/zog";
+import { z } from "zod";
+
+const userSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+});
+
+export const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+});
+
+const postSchema = z.object({
+  id: z.string(),
+  authorId: z.string(),
+  comments: z.array(
+    z.object({
+      authorId: z.string(),
+      body: z.string(),
+    }),
+  ),
+});
+
+export const postModel = createModel("posts", postSchema, {
+  primaryKey: "id",
+  references: [
+    ref("authorId", userModel),
+    ref("comments[].authorId", userModel),
+  ],
+});
+```
+
+References can point through embedded documents and arrays with dotted paths
+and `[]` array markers.
+
+```ts
+ref("teams[].members[].userId", userModel);
+ref("metadata.reviewedByUserId", userModel, { optional: true });
+ref("deletedByUserId", userModel, { nullable: true });
+```
+
+By default, reference fields must exist, be required, be non-null, and match the
+target primary key type. Optional and nullable references must be marked
+explicitly.
+
+Reference validation requires Zod 4 schemas because Zog introspects schema
+internals for this feature.
+
+## Render Diagrams
+
+Use the pure renderers when you want to print or compose the output yourself:
+
+```ts
+import { renderDbDiagram } from "@mp-lb/zog";
+import { postModel, userModel } from "./models";
+
+const models = [userModel, postModel] as const;
+
+console.log(renderDbDiagram(models));
+console.log(renderDbDiagram(models, { format: "mermaid" }));
+```
+
+The default ASCII view combines schema shape and references:
+
+```txt
+posts collection (posts)
+├── _id <- id: string [primary]
+├── authorId: string -> users.id
+└── comments: object[]
+    ├── authorId: string -> users.id
+    └── body: string
+```
+
+Mermaid output uses a flowchart so embedded documents and cross-model
+references can appear in one diagram.
+
+```ts
+renderDbDiagram(models, { format: "mermaid" });
+```
+
+Use `view` when you only want one part of the model map:
+
+```ts
+renderDbDiagram(models, { view: "schema" });
+renderDbDiagram(models, { view: "relationships" });
+renderDbDiagram(models, { format: "mermaid", view: "relationships" });
+```
+
+## Write Diagram Files
+
+Most applications should call the writer from an app-owned script. This avoids
+requiring a Zog CLI to understand every TypeScript loader, bundler, path alias,
+and environment setup.
+
+```ts
+// scripts/write-model-diagram.ts
+import { writeDbDiagramFile } from "@mp-lb/zog";
+import { models } from "../src/models";
+
+await writeDbDiagramFile("docs/data-models.md", models, {
+  format: "mermaid",
+  title: "Data Models",
+});
+```
+
+Run it with the TypeScript runner your project already uses:
+
+```sh
+tsx scripts/write-model-diagram.ts
+```
+
+Markdown files (`.md` and `.mdx`) are written with fenced code blocks. Other
+file extensions are written as raw diagram text.
+
+```ts
+await writeDbDiagramFile("docs/data-models.md", models);
+await writeDbDiagramFile("docs/data-models.txt", models);
+await writeDbDiagramFile("docs/data-models.mmd", models, {
+  format: "mermaid",
+});
+```
+
+For one model, use `renderModelDiagram` or `writeModelDiagramFile`.
