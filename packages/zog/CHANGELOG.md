@@ -1,5 +1,11 @@
 # @mp-lb/zog
 
+## 0.6.0
+
+### Minor Changes
+
+- c7ed195: Add model references and diagram rendering
+
 ## 0.5.0
 
 ### Minor Changes

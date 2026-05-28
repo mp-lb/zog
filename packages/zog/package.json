@@ -1,6 +1,6 @@
 {
   "name": "@mp-lb/zog",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A tiny Zod-first persistence layer for MongoDB.",
   "private": false,
   "type": "module",
