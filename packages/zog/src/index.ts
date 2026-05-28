@@ -13,6 +13,7 @@ export { createModel } from "./model.js";
 export type {
   AnyModelDefinition,
   InferModel,
+  LegacyKeyRename,
   ModelDefinition,
   ModelOptions,
   ObjectIdPolicy,

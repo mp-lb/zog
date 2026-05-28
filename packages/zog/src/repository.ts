@@ -42,6 +42,7 @@ import {
 import type {
   AnyModelDefinition,
   InferModel,
+  LegacyKeyRename,
   SchemaInput,
   ZogSchema,
 } from "./model.js";
@@ -154,6 +155,7 @@ type ModelRuntime<T extends object> = {
   collectionName: string;
   primaryKey: string;
   schema: ZogSchema<T>;
+  legacyKeyRenames?: readonly LegacyKeyRename[];
   normalizeLegacy: ((raw: Record<string, unknown>) => Record<string, unknown>) | undefined;
   objectIdPolicy: "reject" | "stringify";
   timestamps?: {
@@ -202,9 +204,12 @@ export function fromMongo<T extends object>(
     return null;
   }
 
+  const candidate = { ...raw };
+  applyLegacyKeyRenames(candidate, model.legacyKeyRenames ?? []);
+
   const normalized = model.normalizeLegacy
-    ? model.normalizeLegacy({ ...raw })
-    : { ...raw };
+    ? model.normalizeLegacy(candidate)
+    : candidate;
 
   const mongoId = normalized._id;
   const primaryValue = normalized[model.primaryKey];
@@ -221,6 +226,157 @@ export function fromMongo<T extends object>(
   }
 
   return normalized;
+}
+
+type LegacyPathSegment = {
+  key: string;
+  array: boolean;
+};
+
+function applyLegacyKeyRenames(
+  target: Record<string, unknown>,
+  renames: readonly LegacyKeyRename[],
+): void {
+  for (const rename of renames) {
+    applyLegacyKeyRename(target, rename);
+  }
+}
+
+function applyLegacyKeyRename(
+  target: Record<string, unknown>,
+  rename: LegacyKeyRename,
+): void {
+  const from = parseLegacyPath(rename.from);
+  const to = parseLegacyPath(rename.to);
+
+  assertCompatibleLegacyRename(rename, from, to);
+  applyLegacyKeyRenameAtParent(target, from, to);
+}
+
+function parseLegacyPath(path: string): LegacyPathSegment[] {
+  if (path.trim() === "") {
+    throw new Error("legacy key rename paths must be non-empty");
+  }
+
+  return path.split(".").map((segment) => {
+    const array = segment.endsWith("[]");
+    const key = array ? segment.slice(0, -2) : segment;
+
+    if (key === "" || key.includes("[") || key.includes("]")) {
+      throw new Error(`invalid legacy key rename path ${JSON.stringify(path)}`);
+    }
+
+    return { key, array };
+  });
+}
+
+function assertCompatibleLegacyRename(
+  rename: LegacyKeyRename,
+  from: readonly LegacyPathSegment[],
+  to: readonly LegacyPathSegment[],
+): void {
+  if (from.length !== to.length) {
+    throw new Error(
+      `legacy key rename ${JSON.stringify(rename.from)} -> ${JSON.stringify(
+        rename.to,
+      )} must keep the same parent path`,
+    );
+  }
+
+  const fromKey = from[from.length - 1];
+  const toKey = to[to.length - 1];
+  if (!fromKey || !toKey || fromKey.array || toKey.array || fromKey.key === toKey.key) {
+    throw new Error(
+      `legacy key rename ${JSON.stringify(rename.from)} -> ${JSON.stringify(
+        rename.to,
+      )} must rename one object key`,
+    );
+  }
+
+  for (let index = 0; index < from.length - 1; index += 1) {
+    const fromSegment = from[index];
+    const toSegment = to[index];
+
+    if (
+      !fromSegment ||
+      !toSegment ||
+      fromSegment.key !== toSegment.key ||
+      fromSegment.array !== toSegment.array
+    ) {
+      throw new Error(
+        `legacy key rename ${JSON.stringify(rename.from)} -> ${JSON.stringify(
+          rename.to,
+        )} must keep the same parent path`,
+      );
+    }
+  }
+}
+
+function applyLegacyKeyRenameAtParent(
+  current: unknown,
+  from: readonly LegacyPathSegment[],
+  to: readonly LegacyPathSegment[],
+): void {
+  if (!isRecord(current)) {
+    return;
+  }
+
+  if (from.length === 1) {
+    const fromSegment = from[0];
+    const toSegment = to[0];
+
+    if (!fromSegment || !toSegment) {
+      return;
+    }
+
+    const fromKey = fromSegment.key;
+    const toKey = toSegment.key;
+
+    if (Object.prototype.hasOwnProperty.call(current, fromKey)) {
+      if (!Object.prototype.hasOwnProperty.call(current, toKey)) {
+        current[toKey] = current[fromKey];
+      }
+
+      delete current[fromKey];
+    }
+
+    return;
+  }
+
+  const [segment, ...remainingFrom] = from;
+  if (!segment) {
+    return;
+  }
+
+  const remainingTo = to.slice(1);
+  const next = current[segment.key];
+
+  if (segment.array) {
+    if (!Array.isArray(next)) {
+      return;
+    }
+
+    const cloned = next.map((item) => (isRecord(item) ? { ...item } : item));
+    current[segment.key] = cloned;
+
+    for (const item of cloned) {
+      applyLegacyKeyRenameAtParent(item, remainingFrom, remainingTo);
+    }
+
+    return;
+  }
+
+  if (!isRecord(next)) {
+    return;
+  }
+
+  const cloned = { ...next };
+  current[segment.key] = cloned;
+  applyLegacyKeyRenameAtParent(cloned, remainingFrom, remainingTo);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export function createMongoZodCollection<Model extends AnyModelDefinition>(
@@ -248,6 +404,7 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     collectionName,
     primaryKey: model.primaryKey,
     schema: model.schema as ZogSchema<T>,
+    legacyKeyRenames: model.legacyKeyRenames,
     normalizeLegacy: model.normalizeLegacy,
     objectIdPolicy: model.objectIdPolicy,
     ...(model.timestamps === undefined ? {} : { timestamps: model.timestamps }),

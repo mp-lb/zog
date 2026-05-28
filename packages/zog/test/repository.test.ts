@@ -203,6 +203,136 @@ describe("Zog repository", () => {
     expect(candidate?.id).toBe(objectId.toHexString());
   });
 
+  it("renames legacy keys before parsing reads, including nested arrays", async () => {
+    const accountSchema = z.object({
+      id: z.string(),
+      profile: z.object({
+        name: z.string(),
+      }),
+      teams: z.array(
+        z.object({
+          members: z.array(
+            z.object({
+              name: z.string(),
+            }),
+          ),
+        }),
+      ),
+    });
+    const accountModel = createModel("accounts", accountSchema, {
+      primaryKey: "id",
+      legacyKeyRenames: [
+        { from: "profile.full_name", to: "profile.name" },
+        { from: "teams[].members[].full_name", to: "teams[].members[].name" },
+      ],
+    });
+    const fake = createFakeMongoClient();
+    const legacyDocument = {
+      _id: "account_1",
+      profile: {
+        full_name: "Legacy Account",
+      },
+      teams: [
+        {
+          members: [{ full_name: "First Member" }, { name: "Current Member" }],
+        },
+      ],
+    };
+    fake.collection("accounts").documents.set("account_1", legacyDocument);
+    const db = defineDb([accountModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(db.accounts.findById("account_1")).resolves.toEqual({
+      id: "account_1",
+      profile: {
+        name: "Legacy Account",
+      },
+      teams: [
+        {
+          members: [{ name: "First Member" }, { name: "Current Member" }],
+        },
+      ],
+    });
+    expect(legacyDocument).toEqual({
+      _id: "account_1",
+      profile: {
+        full_name: "Legacy Account",
+      },
+      teams: [
+        {
+          members: [{ full_name: "First Member" }, { name: "Current Member" }],
+        },
+      ],
+    });
+  });
+
+  it("prefers current keys when current and legacy keys are both present", async () => {
+    const accountSchema = z.object({
+      id: z.string(),
+      profile: z.object({
+        name: z.string(),
+      }),
+    });
+    const accountModel = createModel("accounts", accountSchema, {
+      primaryKey: "id",
+      legacyKeyRenames: [{ from: "profile.full_name", to: "profile.name" }],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("accounts").documents.set("account_1", {
+      _id: "account_1",
+      profile: {
+        full_name: "Legacy Account",
+        name: "Current Account",
+      },
+    });
+    const db = defineDb([accountModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(db.accounts.findById("account_1")).resolves.toEqual({
+      id: "account_1",
+      profile: {
+        name: "Current Account",
+      },
+    });
+  });
+
+  it("wraps invalid legacy key rename paths as storage errors", async () => {
+    const accountSchema = z.object({
+      id: z.string(),
+      members: z.array(
+        z.object({
+          name: z.string(),
+        }),
+      ),
+    });
+    const accountModel = createModel("accounts", accountSchema, {
+      primaryKey: "id",
+      legacyKeyRenames: [{ from: "members[].full_name", to: "members.name" }],
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("accounts").documents.set("account_1", {
+      _id: "account_1",
+      members: [{ full_name: "Legacy Member" }],
+    });
+    const db = defineDb([accountModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(db.accounts.findById("account_1")).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "findById",
+      cause: expect.objectContaining({
+        message:
+          'legacy key rename "members[].full_name" -> "members.name" must keep the same parent path',
+      }),
+    });
+  });
+
   it("replaces full documents on updateById and keeps the primary key stable", async () => {
     const fake = createFakeMongoClient();
     const db = defineDb([userModel] as const, {

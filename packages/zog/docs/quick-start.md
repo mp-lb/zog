@@ -55,9 +55,34 @@ If the logical model name differs from the physical Mongo collection, pass
 ```ts
 const storeModel = createModel("stores", storeSchema, {
   collectionName: "store_metadata",
+  legacyCollectionNames: ["store-metadata"],
   primaryKey: "_id",
 });
 ```
+
+If `store_metadata` does not exist yet but `store-metadata` does, repository and
+index operations use the declared legacy collection. If both names exist, Zog
+throws instead of choosing between split data.
+
+For stored documents that still use old key names, declare read-time key
+renames:
+
+```ts
+const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+  legacyKeyRenames: [
+    { from: "full_name", to: "name" },
+    { from: "profile.display_name", to: "profile.displayName" },
+    { from: "teams[].members[].full_name", to: "teams[].members[].name" },
+  ],
+});
+```
+
+`legacyKeyRenames` runs before schema parsing on reads. `[]` applies the rename
+to every object in an array. If both the legacy and current keys exist, the
+current key wins. Zog removes the legacy key from the parse candidate, but does
+not rewrite MongoDB automatically. For custom legacy shapes, use
+`normalizeLegacy`.
 
 For legacy index cleanup, use `beforeEnsureIndexes`:
 
@@ -80,6 +105,8 @@ await mongoClient.connect();
 const db = defineDb([userModel] as const, {
   mongoClient,
   databaseName: "zog_test",
+  collectionNamePolicy: "snake",
+  collectionNameCompatibility: "error",
 });
 
 await db.ensureIndexes();
@@ -87,6 +114,11 @@ await db.ensureIndexes();
 
 The `as const` is important. It lets TypeScript infer `db.users` from the
 literal model name.
+
+`collectionNamePolicy` is optional. When enabled, Zog rejects model collection
+names that do not match the policy. `collectionNameCompatibility: "error"` adds
+a naming-scheme guard before repository and index operations, so an undeclared
+`store-metadata` collection is reported before Zog creates `store_metadata`.
 
 `ensureIndexes()` is additive: it creates declared indexes and leaves existing
 indexes alone. To inspect or reconcile indexes, use the diff and sync APIs:

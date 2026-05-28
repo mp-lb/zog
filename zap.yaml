@@ -2,10 +2,20 @@ project: zog
 env_files:
   - .env.local
   - .env
-homepage: http://localhost:${DOCS_PORT}/docs
+homepage: http://localhost:${LANDING_PAGE_PORT}
+links:
+  - name: Landing Page
+    url: http://localhost:${LANDING_PAGE_PORT}
+  - name: Docs
+    url: http://localhost:${DOCS_PORT}/docs
 ports:
+  - LANDING_PAGE_PORT
   - DOCS_PORT
 native:
+  landing_page:
+    aliases: [landing]
+    cmd: pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${LANDING_PAGE_PORT}
+    env: "*"
   docs:
     cmd: pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${DOCS_PORT}
     env: "*"

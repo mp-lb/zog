@@ -29,6 +29,11 @@ export type TimestampRuntimeOptions = {
   now: () => unknown;
 };
 
+export type LegacyKeyRename = {
+  from: string;
+  to: string;
+};
+
 export type ModelOptions<
   Schema extends ZogSchema,
   PrimaryKey extends Extract<keyof SchemaOutput<Schema>, string>,
@@ -36,6 +41,7 @@ export type ModelOptions<
   primaryKey: PrimaryKey;
   collectionName?: string;
   legacyCollectionNames?: readonly string[];
+  legacyKeyRenames?: readonly LegacyKeyRename[];
   indexes?: readonly ModelIndex[];
   normalizeLegacy?: (raw: Record<string, unknown>) => Record<string, unknown>;
   beforeEnsureIndexes?: (collection: Collection<Document>) => Promise<void> | void;
@@ -51,6 +57,7 @@ export type ModelDefinition<
   name: Name;
   collectionName: string;
   legacyCollectionNames: readonly string[];
+  legacyKeyRenames: readonly LegacyKeyRename[];
   schema: Schema;
   primaryKey: PrimaryKey;
   indexes: readonly ModelIndex[];
@@ -64,6 +71,7 @@ export type AnyModelDefinition = {
   name: string;
   collectionName: string;
   legacyCollectionNames: readonly string[];
+  legacyKeyRenames: readonly LegacyKeyRename[];
   schema: ZogSchema;
   primaryKey: string;
   indexes: readonly ModelIndex[];
@@ -93,6 +101,7 @@ export function createModel<
     name,
     collectionName: options.collectionName ?? name,
     legacyCollectionNames: options.legacyCollectionNames ?? [],
+    legacyKeyRenames: options.legacyKeyRenames ?? [],
     schema,
     primaryKey: options.primaryKey,
     indexes: options.indexes ?? [],

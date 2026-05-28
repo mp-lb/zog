@@ -81,6 +81,24 @@ If `store_metadata` does not exist yet but a declared legacy name does, Zog uses
 the legacy collection for repository and index operations. If both the current
 and legacy collection names exist, Zog throws because the data is split.
 
+Models may declare legacy key renames for old stored document shapes:
+
+```ts
+export const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+  legacyKeyRenames: [
+    { from: "full_name", to: "name" },
+    { from: "profile.display_name", to: "profile.displayName" },
+    { from: "teams[].members[].full_name", to: "teams[].members[].name" },
+  ],
+});
+```
+
+`legacyKeyRenames` runs before schema parsing on reads. Paths rename keys within
+the same parent object, and `[]` applies a path segment to every object in an
+array. If both keys exist, the current key wins. The old key is removed from the
+parse candidate, but reads do not write a migration back to MongoDB.
+
 Applications may opt into collection name policy enforcement at the Zog
 boundary:
 

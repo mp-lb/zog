@@ -67,6 +67,26 @@ If `store_metadata` does not exist yet but `store-metadata` does, repository and
 index operations use the declared legacy collection. If both names exist, Zog
 throws instead of choosing between split data.
 
+For stored documents that still use old key names, declare read-time key
+renames:
+
+```ts
+const userModel = createModel("users", userSchema, {
+  primaryKey: "id",
+  legacyKeyRenames: [
+    { from: "full_name", to: "name" },
+    { from: "profile.display_name", to: "profile.displayName" },
+    { from: "teams[].members[].full_name", to: "teams[].members[].name" },
+  ],
+});
+```
+
+`legacyKeyRenames` runs before schema parsing on reads. `[]` applies the rename
+to every object in an array. If both the legacy and current keys exist, the
+current key wins. Zog removes the legacy key from the parse candidate, but does
+not rewrite MongoDB automatically. For custom legacy shapes, use
+`normalizeLegacy`.
+
 For legacy index cleanup, use `beforeEnsureIndexes`:
 
 ```ts
