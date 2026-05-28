@@ -7,17 +7,17 @@ links:
   - name: Landing Page
     url: http://localhost:${LANDING_PAGE_PORT}
   - name: Docs
-    url: http://localhost:${DOCS_PORT}/docs
+    url: http://localhost:${DOCS_PORT}
 ports:
   - LANDING_PAGE_PORT
   - DOCS_PORT
 native:
   landing_page:
     aliases: [landing]
-    cmd: pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${LANDING_PAGE_PORT}
+    cmd: VITE_ZOG_DOCS_URL=http://localhost:${DOCS_PORT} pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${LANDING_PAGE_PORT}
     env: "*"
   docs:
-    cmd: pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${DOCS_PORT}
+    cmd: ZOG_SITE_MODE=docs pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${DOCS_PORT}
     env: "*"
 tasks:
   setup:

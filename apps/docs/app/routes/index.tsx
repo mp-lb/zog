@@ -1,4 +1,11 @@
 import type { Route } from './+types/index';
+import { redirect } from 'react-router';
+
+const docsUrl = import.meta.env.VITE_ZOG_DOCS_URL ?? '/docs';
+const llmsUrl =
+  import.meta.env.VITE_ZOG_DOCS_URL != null
+    ? `${import.meta.env.VITE_ZOG_DOCS_URL}/llms-full.txt`
+    : '/llms-full.txt';
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -10,9 +17,17 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
+export function loader() {
+  if (process.env.ZOG_SITE_MODE === 'docs') {
+    throw redirect('/docs');
+  }
+
+  return null;
+}
+
 const navLinks = [
-  { label: 'Docs', href: '/docs' },
-  { label: 'LLMs', href: '/llms-full.txt' },
+  { label: 'Docs', href: docsUrl },
+  { label: 'LLMs', href: llmsUrl },
   { label: 'GitHub', href: 'https://github.com/mp-lb/zog' },
 ];
 
@@ -112,7 +127,7 @@ export default function Page() {
 
                 <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <a
-                    href="/docs"
+                    href={docsUrl}
                     className="inline-flex min-h-11 items-center justify-center border border-white/80 px-4 text-sm font-medium text-white transition-colors hover:bg-white hover:text-black"
                   >
                     Read the docs
