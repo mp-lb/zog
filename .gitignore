@@ -5,3 +5,4 @@ coverage
 .zap
 *.tsbuildinfo
 apps/docs/.source
+AGENTS.local.md

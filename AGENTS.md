@@ -32,3 +32,5 @@ For full setup validation, also run:
 zap task setup
 zap up
 ```
+
+@AGENTS.local.md
