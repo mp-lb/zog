@@ -30,7 +30,7 @@ import {
   type UpdateOptions,
   type UpdateResult,
 } from "mongodb";
-import { ZogError, type ZogOperation } from "./error.js";
+import { ZogError, isValidationError, type ZogOperation } from "./error.js";
 import {
   indexSpecsMatch,
   toDeclaredIndex,
@@ -1725,6 +1725,38 @@ function normalizeMongoId<T extends object>(
   return value;
 }
 
+// Summarise the underlying cause into a string so it rides along in the
+// ZogError *message* — `cause` is dropped when an error crosses a tRPC (or any
+// serialization) boundary, so without this the caller only ever sees the
+// generic "Zog <op> failed for <model>" line and never the real reason.
+function describeCause(cause: unknown): string | undefined {
+  if (cause == null) {
+    return undefined;
+  }
+
+  if (isValidationError(cause)) {
+    try {
+      return JSON.stringify(cause.issues);
+    } catch {
+      return "validation failed";
+    }
+  }
+
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+
+  if (typeof cause === "string") {
+    return cause;
+  }
+
+  try {
+    return JSON.stringify(cause);
+  } catch {
+    return String(cause);
+  }
+}
+
 function wrapError<T extends object>(
   model: ModelRuntime<T>,
   operation: ZogOperation,
@@ -1734,10 +1766,13 @@ function wrapError<T extends object>(
     return cause;
   }
 
+  const details = describeCause(cause);
+
   return new ZogError({
     modelName: model.modelName,
     collectionName: model.collectionName,
     operation,
+    ...(details !== undefined ? { details } : {}),
     cause,
   });
 }
