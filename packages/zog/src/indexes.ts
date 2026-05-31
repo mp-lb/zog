@@ -41,10 +41,12 @@ export type DbIndexDiff = {
   models: ModelIndexDiff[];
 };
 
+/** Declare a non-unique index on a model. */
 export function index(key: IndexKey, options?: CreateIndexesOptions): ModelIndex {
   return options === undefined ? { key } : { key, options };
 }
 
+/** Declare a unique index on a model. */
 export function uniqueIndex(
   key: IndexKey,
   options?: CreateIndexesOptions,

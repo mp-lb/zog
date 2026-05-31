@@ -40,6 +40,7 @@ type ZodLike = {
   _def?: ZodDef;
 };
 
+/** Render a single model's schema and references as an ASCII or Mermaid diagram. */
 export function renderModelDiagram(
   model: AnyModelDefinition,
   options: ModelDiagramOptions = {},
@@ -47,6 +48,7 @@ export function renderModelDiagram(
   return renderDbDiagram([model], options);
 }
 
+/** Render one or more models as an ASCII or Mermaid diagram. */
 export function renderDbDiagram(
   models: readonly AnyModelDefinition[],
   options: ModelDiagramOptions = {},

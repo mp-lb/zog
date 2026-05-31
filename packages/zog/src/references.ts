@@ -47,6 +47,19 @@ type PathSegment = {
   array: boolean;
 };
 
+/**
+ * Declare that a field holds another model's primary key. The reference is
+ * checked against the Zod schemas when the model is created; it does not enforce
+ * referential integrity in MongoDB at read or write time.
+ *
+ * @example
+ * ```ts
+ * createModel("posts", postSchema, {
+ *   primaryKey: "id",
+ *   references: [ref("authorId", userModel)],
+ * });
+ * ```
+ */
 export function ref<TargetModel extends AnyModelDefinition>(
   path: string,
   target: TargetModel,

@@ -24,6 +24,11 @@ export type ZogValidationError = {
   issues: unknown[];
 };
 
+/**
+ * Error thrown by repository and index operations when a model operation fails.
+ * Carries the model, collection, and operation that failed; when the underlying
+ * cause is a Zod validation error it is surfaced via {@link ZogError.validationError}.
+ */
 export class ZogError extends Error {
   readonly modelName: string;
   readonly collectionName: string;

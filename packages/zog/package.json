@@ -18,10 +18,7 @@
   },
   "files": [
     "dist",
-    "docs",
-    "package.json",
-    "README.md",
-    "SPEC.md"
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"

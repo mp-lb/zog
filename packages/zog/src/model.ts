@@ -89,6 +89,15 @@ export type AnyModelDefinition = {
 export type InferModel<Model extends AnyModelDefinition> =
   Model extends { schema: infer Schema extends ZogSchema } ? SchemaOutput<Schema> & object : never;
 
+/**
+ * Define a Zog model: a Zod schema plus the metadata Zog needs to persist it
+ * (primary key, collection name, indexes, references, timestamps).
+ *
+ * @example
+ * ```ts
+ * const userModel = createModel("users", userSchema, { primaryKey: "id" });
+ * ```
+ */
 export function createModel<
   const Name extends string,
   Schema extends ZogSchema,

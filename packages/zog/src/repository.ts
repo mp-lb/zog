@@ -379,6 +379,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Create a single Zod-validated repository for a model on an existing MongoDB
+ * `Db`. Prefer {@link defineDb} unless you need to wire one collection by hand.
+ */
 export function createMongoZodCollection<Model extends AnyModelDefinition>(
   db: Db,
   model: Model,
@@ -1052,6 +1056,17 @@ export type DefinedDb<Models extends readonly AnyModelDefinition[]> =
   ): Promise<T>;
 };
 
+/**
+ * Build a typed database adapter from a set of models and a connected
+ * `MongoClient`. Each model is exposed as a repository under its model name
+ * (e.g. `db.users`), alongside index helpers and transaction support.
+ *
+ * @example
+ * ```ts
+ * const db = defineDb([userModel] as const, { mongoClient, databaseName: "app" });
+ * await db.users.insertOne({ id: "u1", email: "a@b.com" });
+ * ```
+ */
 export function defineDb<const Models extends readonly AnyModelDefinition[]>(
   models: Models,
   options: DefineDbOptions,
