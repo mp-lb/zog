@@ -35,3 +35,4 @@ tasks:
   worktree_setup:
     cmds:
       - pnpm install
+      - grep -qxF '@AGENTS_WORKTREE.md' AGENTS.md || printf '\n@AGENTS_WORKTREE.md\n' >> AGENTS.md

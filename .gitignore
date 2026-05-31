@@ -6,3 +6,4 @@ coverage
 *.tsbuildinfo
 apps/docs/.source
 AGENTS.local.md
+AGENTS_WORKTREE.md
