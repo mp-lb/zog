@@ -1,5 +1,5 @@
 project: zog
-env_files:
+env-files:
   - .env.local
   - .env
 homepage: http://localhost:${LANDING_PAGE_PORT}
@@ -12,7 +12,7 @@ ports:
   - LANDING_PAGE_PORT
   - DOCS_PORT
 native:
-  landing_page:
+  landing-page:
     aliases: [landing]
     cmd: VITE_ZOG_DOCS_URL=http://localhost:${DOCS_PORT} pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${LANDING_PAGE_PORT}
     env: "*"
@@ -32,7 +32,7 @@ tasks:
   test:
     cmds:
       - pnpm test
-  worktree_setup:
+  worktree-setup:
     cmds:
       - pnpm install
       - grep -qxF '@AGENTS_WORKTREE.md' AGENTS.md || printf '\n@AGENTS_WORKTREE.md\n' >> AGENTS.md
