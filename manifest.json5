@@ -1,4 +1,5 @@
 {
+  type: 'fssstack',
   name: 'Zog',
   emoji: '🐸',
   description: 'Better integration for Zod and MongoDB',
