@@ -34,8 +34,8 @@ tasks:
         rm -f /tmp/.env.check; echo "secrets in sync"
   compile-agents:
     cmds:
-      - npx -y @mp-lb/mdcompile agents-md/index.md -o AGENTS.md --optional --silent
-      - npx -y @mp-lb/mdcompile agents-md/index.md -o CLAUDE.md --optional --silent
+      - npx -y @mp-lb/mdcompile docs/agents-md/index.md -o AGENTS.md --optional --silent
+      - npx -y @mp-lb/mdcompile docs/agents-md/index.md -o CLAUDE.md --optional --silent
   setup:
     cmds:
       - pnpm install

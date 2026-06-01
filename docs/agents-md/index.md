@@ -8,4 +8,4 @@ Always read `AGENTS.md` when starting new chats if it exists.
 
 @validation.md
 
-@~/Code/mgr/agents-md/global.md
+@fssstack/global.md
