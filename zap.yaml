@@ -20,6 +20,10 @@ native:
     cmd: ZOG_SITE_MODE=docs pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${DOCS_PORT}
     env: "*"
 tasks:
+  compile-agents:
+    cmds:
+      - npx -y @mp-lb/mdcompile agents-md/index.md -o AGENTS.md --optional --silent
+      - npx -y @mp-lb/mdcompile agents-md/index.md -o CLAUDE.md --optional --silent
   setup:
     cmds:
       - pnpm install
