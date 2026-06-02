@@ -5,3 +5,7 @@ packages:
 allowBuilds:
   esbuild: true
   msw: true
+
+minimumReleaseAgeExclude:
+  - '@mp-lb/tools-fumadocs-preset@0.2.0'
+  - '@mp-lb/tools-fumadocs-preset@0.3.0'
