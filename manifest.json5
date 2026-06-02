@@ -5,6 +5,7 @@
   description: 'Better integration for Zod and MongoDB',
   projectSlug: 'zog',
   packagePrefix: '@mp-lb',
+  homepageUrl: null,
   shadcnPreset: 'b1VlIttI',
   frontends: [],
   backends: [],
