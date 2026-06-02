@@ -1,5 +1,16 @@
 # @mp-lb/zog
 
+## 0.6.1
+
+### Patch Changes
+
+- 7462b20: Cache collection-name compatibility resolution per repository instance. In any
+  `collectionNameCompatibility` mode other than the `"off"` fast path, zog
+  previously issued a `listCollections` call on every read/write operation. The
+  collection-name set is now loaded at most once per `(db, model)` and reused,
+  removing a per-operation latency tax on hot paths. Resolution stays lazy (first
+  use) and all compatibility-mode semantics and `ZogError`s are unchanged.
+
 ## 0.6.0
 
 ### Minor Changes
