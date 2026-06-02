@@ -1,15 +1,15 @@
 ## Process management
 
-This project uses zapper for running native processes, containers, and one-off tasks. Zapper manages ports and env vars. Any changes to the stack would be done through zap.yaml. Any process or command that needs env vars would need to be run through zapper. The project may well already be running in the background. Check and manage with:
+[Zapper](https://docs.zapper.mp-lb.dev) runs this project's processes (native and containerized) and one-off tasks from a single `zap.yaml`. Ports and env vars come from Zapper — never hardcode a dev port or fall back to a framework default. The project is often already running in the background.
+
+A few basics:
 
 ```
-zap status # See what's running
-zap up # Start everything
-zap logs <service> --no-follow # View logs
-zap restart <service> # Restart a service
-zap task <task> # Run a one off task
+zap status              # what's running
+zap up                  # start everything
+zap logs <service> --no-follow
+zap restart <service>
+zap task <task>         # run a one-off task
 ```
 
-The port management is very important. No local dev ports should be in .env files or committed to git. It's all managed through zap.yaml.
-
-See [https://docs.zapper.mp-lb.dev/llms-full.txt](https://docs.zapper.mp-lb.dev/llms-full.txt) for full usage guide.
+Beyond these, the CLI has full built-in help — run `zap --help`, or `zap <command> --help` for a specific command. If that's still not enough, the complete documentation is online at <https://docs.zapper.mp-lb.dev>.
