@@ -9,7 +9,6 @@
   shadcnPreset: 'b1VlIttI',
   frontends: [],
   backends: [],
-  clis: [],
   libs: ['zog'],
   extensions: []
 }
