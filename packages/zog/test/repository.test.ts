@@ -81,6 +81,38 @@ describe("Zog repository", () => {
     await expect(db.users.findOne({ id: "user_1" })).resolves.toEqual(user);
   });
 
+  it("rewrites the primary key to _id inside $and/$or/$nor branches", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.findOne({
+      $or: [{ id: "user_1" }, { email: user.email }],
+      $and: [{ id: { $in: ["user_1", "user_2"] } }],
+    });
+
+    expect(fake.collection("users").lastFilters.at(-1)).toEqual({
+      $or: [{ _id: "user_1" }, { email: user.email }],
+      $and: [{ _id: { $in: ["user_1", "user_2"] } }],
+    });
+  });
+
+  it("leaves opaque operators untouched so they can target _id directly", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.users.findOne({ $expr: { $eq: ["$_id", "user_1"] } } as never);
+
+    expect(fake.collection("users").lastFilters.at(-1)).toEqual({
+      $expr: { $eq: ["$_id", "user_1"] },
+    });
+  });
+
   it("wraps find cursors while preserving Mongo cursor chaining", async () => {
     const fake = createFakeMongoClient();
     fake.collection("users").documents.set("user_2", {

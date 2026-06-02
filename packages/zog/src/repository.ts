@@ -1627,21 +1627,50 @@ function withUpdateTimestamp<T extends object>(
   } as UpdateFilter<T & Document>;
 }
 
+// Logical operators whose value is an array of sub-filters that match against
+// the same top-level fields, so the primary-key rename must recurse into them.
+const LOGICAL_FILTER_OPERATORS = new Set(["$and", "$or", "$nor"]);
+
 function toMongoFilter<T extends object>(
   model: ModelRuntime<T>,
   filter: Filter<T> | undefined,
 ): MongoFilter<Document> {
-  const source = { ...(filter ?? {}) } as Record<string, unknown>;
+  return rewriteFilterPrimaryKey(model, { ...(filter ?? {}) }) as MongoFilter<Document>;
+}
 
-  if (
-    model.primaryKey !== "_id" &&
-    Object.prototype.hasOwnProperty.call(source, model.primaryKey)
-  ) {
-    source._id = source[model.primaryKey];
-    delete source[model.primaryKey];
+// Rename the model's primary key to `_id` wherever it can appear as a top-level
+// match field: at the root and inside `$and`/`$or`/`$nor` branches. We do NOT
+// descend into ordinary field values (e.g. `$elemMatch` on an array field), as a
+// sub-document key sharing the primary key's name is a different field, not the
+// `_id`. Opaque operators (`$where`, `$expr`, aggregation pipelines) are left
+// untouched by design — query their primary key as `_id` directly.
+function rewriteFilterPrimaryKey<T extends object>(
+  model: ModelRuntime<T>,
+  filter: Record<string, unknown>,
+): Record<string, unknown> {
+  if (model.primaryKey === "_id") {
+    return filter;
   }
 
-  return source as MongoFilter<Document>;
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(filter)) {
+    if (LOGICAL_FILTER_OPERATORS.has(key) && Array.isArray(value)) {
+      result[key] = value.map((branch) =>
+        isPlainRecord(branch) ? rewriteFilterPrimaryKey(model, branch) : branch,
+      );
+      continue;
+    }
+
+    if (key === model.primaryKey) {
+      result._id = value;
+      continue;
+    }
+
+    result[key] = value;
+  }
+
+  return result;
 }
 
 function toMongoUpdate<T extends object>(
