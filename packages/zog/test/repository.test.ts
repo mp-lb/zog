@@ -11,8 +11,10 @@ import {
   createMongoZodCollection,
   createModel,
   defineDb,
+  type Filter,
   fromMongo,
   index,
+  toMongo,
   uniqueIndex,
   ZogError,
 } from "../src/index.js";
@@ -1226,6 +1228,181 @@ describe("Zog repository", () => {
       { session: fake.sessions[0] },
       { session: fake.sessions[0] },
     ]);
+  });
+});
+
+describe("Zog primary-key rewrite", () => {
+  function setup() {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+    return { fake, db, users: () => fake.collection("users") };
+  }
+
+  it("recurses through nested logical operators", async () => {
+    const { db, users } = setup();
+
+    await db.users.findOne({
+      $or: [{ id: "user_1" }, { $and: [{ id: "user_2" }, { email: user.email }] }],
+    });
+
+    expect(users().lastFilters.at(-1)).toEqual({
+      $or: [{ _id: "user_1" }, { $and: [{ _id: "user_2" }, { email: user.email }] }],
+    });
+  });
+
+  it("rewrites the primary key inside $nor branches", async () => {
+    const { db, users } = setup();
+
+    await db.users.findOne({ $nor: [{ id: "user_1" }] });
+
+    expect(users().lastFilters.at(-1)).toEqual({ $nor: [{ _id: "user_1" }] });
+  });
+
+  it("preserves operator values on the renamed primary key", async () => {
+    const { db, users } = setup();
+
+    await db.users.findMany({ id: { $in: ["user_1", "user_2"] } });
+
+    expect(users().lastFilters.at(-1)).toEqual({ _id: { $in: ["user_1", "user_2"] } });
+  });
+
+  it("leaves non-record branch entries untouched", async () => {
+    const { db, users } = setup();
+
+    await db.users.findOne({ $or: [{ id: "user_1" }, "garbage"] } as never);
+
+    expect(users().lastFilters.at(-1)).toEqual({ $or: [{ _id: "user_1" }, "garbage"] });
+  });
+
+  it("does not rewrite a same-named key nested inside a field value", async () => {
+    const { db, users } = setup();
+
+    // `id` here is a sub-document field of `meta`, not the primary key.
+    await db.users.findOne({ meta: { $elemMatch: { id: "nested" } } } as never);
+
+    expect(users().lastFilters.at(-1)).toEqual({
+      meta: { $elemMatch: { id: "nested" } },
+    });
+  });
+
+  it("rewrites filters across every write entry point", async () => {
+    const { db, users } = setup();
+
+    await db.users.deleteMany({ id: "user_1" });
+    await db.users.findOneAndDelete({ id: "user_1" });
+    await db.users.updateMany({ id: "user_1" }, { $set: { name: "x" } });
+
+    expect(users().lastFilters).toEqual([
+      { _id: "user_1" },
+      { _id: "user_1" },
+      { _id: "user_1" },
+    ]);
+  });
+
+  it("passes filters through untouched when the primary key is _id", async () => {
+    const fake = createFakeMongoClient();
+    const idSchema = z.object({ _id: z.string().min(1), name: z.string() });
+    const idModel = createModel("things", idSchema, { primaryKey: "_id" });
+    const db = defineDb([idModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await db.things.findOne({ $or: [{ _id: "a" }], _id: "b" } as never);
+
+    expect(fake.collection("things").lastFilters.at(-1)).toEqual({
+      $or: [{ _id: "a" }],
+      _id: "b",
+    });
+  });
+
+  it("leaves opaque operators ($expr) untouched", async () => {
+    const { db, users } = setup();
+
+    await db.users.findOne({ $expr: { $eq: ["$_id", "user_1"] } } as never);
+
+    expect(users().lastFilters.at(-1)).toEqual({ $expr: { $eq: ["$_id", "user_1"] } });
+  });
+});
+
+describe("Zog reserved _id guard", () => {
+  it("throws when a filter references _id under a renamed primary key", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(
+      db.users.findOne({ _id: "user_1" } as never),
+    ).rejects.toMatchObject({
+      name: "ZogError",
+      operation: "findOne",
+      details: expect.stringContaining("use the primary key id instead of _id"),
+    });
+  });
+
+  it("throws when _id is buried inside a logical branch", async () => {
+    const fake = createFakeMongoClient();
+    const db = defineDb([userModel] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+    });
+
+    await expect(
+      db.users.findOne({ $or: [{ _id: "user_1" }] } as never),
+    ).rejects.toMatchObject({ name: "ZogError" });
+  });
+
+  it("throws on writes that carry an explicit _id under a renamed primary key", () => {
+    expect(() =>
+      toMongo(
+        {
+          modelName: "users",
+          collectionName: "users",
+          primaryKey: "id",
+          schema: userSchema,
+          normalizeLegacy: undefined,
+          objectIdPolicy: "reject",
+        },
+        { ...user, _id: "manual" } as unknown as User,
+      ),
+    ).toThrow(ZogError);
+  });
+
+  it("allows _id when the primary key is _id", () => {
+    const result = toMongo(
+      {
+        modelName: "things",
+        collectionName: "things",
+        primaryKey: "_id",
+        schema: z.object({ _id: z.string(), name: z.string() }),
+        normalizeLegacy: undefined,
+        objectIdPolicy: "reject",
+      },
+      { _id: "thing_1", name: "n" },
+    );
+
+    expect(result).toEqual({ _id: "thing_1", name: "n" });
+  });
+});
+
+describe("Zog filter typing", () => {
+  it("type-checks the value of a known field (no `& Document` any-escape)", () => {
+    const ok: Filter<User> = { id: "user_1", email: "a@b.com" };
+    void ok;
+
+    // @ts-expect-error a number is not a valid condition for the string `id`
+    const bad: Filter<User> = { id: 123 };
+    void bad;
+  });
+
+  it("still permits the root logical operators", () => {
+    const ok: Filter<User> = { $or: [{ id: "user_1" }, { email: "a@b.com" }] };
+    void ok;
   });
 });
 

@@ -48,7 +48,10 @@ import type {
   ZogSchema,
 } from "./model.js";
 
-export type Filter<T extends object> = MongoFilter<T & Document>;
+// Filters are typed against the model's own fields (no `& Document` escape
+// hatch), so a stray field name or typo is a compile error rather than a query
+// that silently matches nothing. Use the domain primary-key name, not `_id`.
+export type Filter<T extends object> = MongoFilter<T>;
 export type FindOptions<T extends object> = MongoFindOptions<T & Document>;
 export type FindOneOptions = Omit<MongoFindOneOptions, "timeoutMode"> & Abortable;
 export type ParsedFindOneAndUpdateOptions = Omit<
@@ -184,6 +187,8 @@ export function toMongo<T extends object>(
       details: `primary key ${model.primaryKey} must be a non-empty string`,
     });
   }
+
+  assertNoReservedId(model, value as Record<string, unknown>, "replace");
 
   const document: Record<string, unknown> = {
     ...value,
@@ -1652,6 +1657,8 @@ function rewriteFilterPrimaryKey<T extends object>(
     return filter;
   }
 
+  assertNoReservedId(model, filter, "findOne");
+
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(filter)) {
@@ -1671,6 +1678,29 @@ function rewriteFilterPrimaryKey<T extends object>(
   }
 
   return result;
+}
+
+// When the primary key is renamed (anything other than `_id`), `_id` is a
+// reserved storage slot the caller must not touch directly — they must use the
+// domain primary-key name so the rename stays consistent. Surface that as a
+// loud error instead of silently clobbering one with the other.
+function assertNoReservedId<T extends object>(
+  model: ModelRuntime<T>,
+  target: Record<string, unknown>,
+  operation: ZogOperation,
+): void {
+  if (model.primaryKey === "_id") {
+    return;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(target, "_id")) {
+    throw new ZogError({
+      modelName: model.modelName,
+      collectionName: model.collectionName,
+      operation,
+      details: `use the primary key ${model.primaryKey} instead of _id; _id is reserved for the renamed primary key`,
+    });
+  }
 }
 
 function toMongoUpdate<T extends object>(
