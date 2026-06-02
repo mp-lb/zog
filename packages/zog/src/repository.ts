@@ -31,6 +31,7 @@ import {
   type UpdateResult,
 } from "mongodb";
 import { ZogError, isValidationError, type ZogOperation } from "./error.js";
+import { memoizeAsync } from "./memoize-async.js";
 import {
   indexSpecsMatch,
   toDeclaredIndex,
@@ -427,13 +428,24 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     return parseReadDocument(raw, operation);
   }
 
+  // Load the database's collection-name set at most once per repository
+  // instance and reuse it for every operation. The topology is effectively
+  // static while the app runs, so re-listing on each find/update/delete buys
+  // nothing but latency. Trade-off: a collection created or renamed after the
+  // first resolution within this process won't be re-detected — acceptable,
+  // since topology doesn't change under a running app. Only the metadata
+  // round-trip is cached; the per-operation decision logic still runs each
+  // time, so compatibility-mode errors are thrown with the correct operation.
+  const loadCollectionNames = memoizeAsync(() => loadDbCollectionNames(db));
+
   async function resolveCollection(operation: ZogOperation): Promise<Collection<Document>> {
-    const resolvedCollectionName = await resolveCollectionNameCompatibility(db, {
+    const resolvedCollectionName = await resolveCollectionNameCompatibility({
       modelName: model.name,
       collectionName,
       legacyCollectionNames,
       collectionNameCompatibility,
       operation,
+      loadCollectionNames,
     });
     return db.collection(resolvedCollectionName) as Collection<Document>;
   }
@@ -799,12 +811,13 @@ export async function ensureModelIndexes<Model extends AnyModelDefinition>(
     operation: "ensureIndexes",
   });
   try {
-    const collectionName = await resolveCollectionNameCompatibility(db, {
+    const collectionName = await resolveCollectionNameCompatibility({
       modelName: model.name,
       collectionName: model.collectionName,
       legacyCollectionNames: model.legacyCollectionNames,
       collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
       operation: "ensureIndexes",
+      loadCollectionNames: () => loadDbCollectionNames(db),
     });
     const collection = db.collection(collectionName);
     await model.beforeEnsureIndexes?.(collection);
@@ -837,12 +850,13 @@ export async function diffModelIndexes<Model extends AnyModelDefinition>(
     operation: "diffIndexes",
   });
   try {
-    const collectionName = await resolveCollectionNameCompatibility(db, {
+    const collectionName = await resolveCollectionNameCompatibility({
       modelName: model.name,
       collectionName: model.collectionName,
       legacyCollectionNames: model.legacyCollectionNames,
       collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
       operation: "diffIndexes",
+      loadCollectionNames: () => loadDbCollectionNames(db),
     });
     const collection = db.collection(collectionName);
     const existingIndexes = await listExistingIndexes(collection);
@@ -906,12 +920,13 @@ export async function syncModelIndexes<Model extends AnyModelDefinition>(
   const dropExtra = options.dropExtra ?? true;
 
   try {
-    const collectionName = await resolveCollectionNameCompatibility(db, {
+    const collectionName = await resolveCollectionNameCompatibility({
       modelName: model.name,
       collectionName: model.collectionName,
       legacyCollectionNames: model.legacyCollectionNames,
       collectionNameCompatibility: options.collectionNameCompatibility ?? "off",
       operation: "syncIndexes",
+      loadCollectionNames: () => loadDbCollectionNames(db),
     });
 
     if (dryRun) {
@@ -1204,14 +1219,30 @@ function assertCollectionNamePolicy(context: {
   });
 }
 
+/**
+ * Load the set of collection names that currently exist in the database.
+ * This is the metadata round-trip behind compatibility resolution; callers on
+ * hot paths should memoize it (see {@link memoizeAsync}).
+ */
+async function loadDbCollectionNames(db: Db): Promise<Set<string>> {
+  const collections = await db
+    .listCollections({}, { nameOnly: true })
+    .toArray();
+  return new Set(
+    collections
+      .map((collection) => collection.name)
+      .filter((name): name is string => typeof name === "string"),
+  );
+}
+
 async function resolveCollectionNameCompatibility(
-  db: Db,
   context: {
     modelName: string;
     collectionName: string;
     legacyCollectionNames: readonly string[];
     collectionNameCompatibility: CollectionNameCompatibility;
     operation: ZogOperation;
+    loadCollectionNames: () => Promise<Set<string>>;
   },
 ): Promise<string> {
   if (
@@ -1221,14 +1252,7 @@ async function resolveCollectionNameCompatibility(
     return context.collectionName;
   }
 
-  const collections = await db
-    .listCollections({}, { nameOnly: true })
-    .toArray();
-  const collectionNames = new Set(
-    collections
-      .map((collection) => collection.name)
-      .filter((name): name is string => typeof name === "string"),
-  );
+  const collectionNames = await context.loadCollectionNames();
   const currentExists = collectionNames.has(context.collectionName);
   const existingLegacyCollectionNames = context.legacyCollectionNames.filter((name) =>
     collectionNames.has(name),

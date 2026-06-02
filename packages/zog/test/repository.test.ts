@@ -1057,6 +1057,67 @@ describe("Zog repository", () => {
     });
   });
 
+  it("resolves the compatibility collection name with at most one listCollections per model", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata").documents.set(user.id, {
+      ...user,
+      _id: user.id,
+    });
+    const db = defineDb([model] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+      collectionNameCompatibility: "error",
+    });
+    fake.collection("store_metadata").namespaceExists = false;
+
+    await db.stores.findById(user.id);
+    await db.stores.findOne({});
+    await db.stores.find({}).toArray();
+    await db.stores.insert({
+      ...user,
+      id: "user_2",
+      email: "second@example.com",
+    });
+
+    // The collection topology is static at runtime, so resolution must be
+    // cached: many operations, at most one listCollections round-trip.
+    expect(fake.listCollectionsCallCount).toBeLessThanOrEqual(1);
+    // It is also resolved lazily (only on first use), so it must actually run.
+    expect(fake.listCollectionsCallCount).toBe(1);
+  });
+
+  it("scopes compatibility resolution per model so separate models don't share it", async () => {
+    const stores = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const accounts = createModel("accounts", userSchema, {
+      collectionName: "account_metadata",
+      legacyCollectionNames: ["account-metadata"],
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    const db = defineDb([stores, accounts] as const, {
+      mongoClient: fake.client,
+      databaseName: "test",
+      collectionNameCompatibility: "error",
+    });
+
+    await db.stores.findOne({});
+    await db.accounts.findOne({});
+    await db.stores.findOne({});
+    await db.accounts.findOne({});
+
+    // One resolution per model, regardless of how many times each is used.
+    expect(fake.listCollectionsCallCount).toBe(2);
+  });
+
   it("runs beforeEnsureIndexes before creating configured indexes", async () => {
     const events: string[] = [];
     const model = createModel("users", userSchema, {
@@ -1139,6 +1200,7 @@ describe("Zog repository", () => {
 function createFakeMongoClient() {
   const collections = new Map<string, FakeCollection>();
   const sessions: FakeSession[] = [];
+  const listCollectionsCalls = { count: 0 };
 
   function collection(name: string): FakeCollection {
     const existing = collections.get(name);
@@ -1153,12 +1215,14 @@ function createFakeMongoClient() {
 
   const db = {
     collection,
-    listCollections: () =>
-      new FakeCursor(
+    listCollections: () => {
+      listCollectionsCalls.count += 1;
+      return new FakeCursor(
         [...collections.entries()]
           .filter(([, collection]) => collection.namespaceExists)
           .map(([name]) => ({ name })),
-      ),
+      );
+    },
   } as unknown as Db;
 
   const client = {
@@ -1174,6 +1238,9 @@ function createFakeMongoClient() {
     client,
     collection,
     sessions,
+    get listCollectionsCallCount() {
+      return listCollectionsCalls.count;
+    },
   };
 }
 
