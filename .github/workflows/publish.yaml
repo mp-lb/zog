@@ -67,12 +67,30 @@ jobs:
           git add .changeset pnpm-lock.yaml packages/*/package.json packages/*/CHANGELOG.md
           git commit -m "chore: release packages [skip ci]"
 
+      - name: Load npm publish token
+        if: ${{ steps.changesets.outputs.count != '0' }}
+        env:
+          SECRETS_KEY: ${{ secrets.SECRETS_KEY }}
+        run: |
+          set -euo pipefail
+          npx -y @mp-lb/doctrine-secrets decrypt docs/secrets.json.enc --secret "$SECRETS_KEY" > secrets.json
+          TOKEN=$(jq -r '.NPM_TOKEN' secrets.json)
+          rm -f secrets.json
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "NPM_TOKEN missing from docs/secrets.json.enc" >&2
+            exit 1
+          fi
+          echo "::add-mask::$TOKEN"
+          {
+            echo "NPM_TOKEN=$TOKEN"
+            echo "NODE_AUTH_TOKEN=$TOKEN"
+          } >> "$GITHUB_ENV"
+
       - name: Publish
         if: ${{ steps.changesets.outputs.count != '0' }}
         run: pnpm changeset publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # NPM_TOKEN / NODE_AUTH_TOKEN come from the "Load npm publish token" step
+        # (decrypted from docs/secrets.json.enc), not a GitHub secret.
 
       - name: Push release commit and tags
         if: ${{ steps.changesets.outputs.count != '0' }}
