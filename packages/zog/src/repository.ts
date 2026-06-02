@@ -31,7 +31,6 @@ import {
   type UpdateResult,
 } from "mongodb";
 import { ZogError, isValidationError, type ZogOperation } from "./error.js";
-import { memoizeAsync } from "./memoize-async.js";
 import {
   indexSpecsMatch,
   toDeclaredIndex,
@@ -433,15 +432,19 @@ export function createMongoZodCollection<Model extends AnyModelDefinition>(
     return parseReadDocument(raw, operation);
   }
 
-  // Load the database's collection-name set at most once per repository
-  // instance and reuse it for every operation. The topology is effectively
-  // static while the app runs, so re-listing on each find/update/delete buys
-  // nothing but latency. Trade-off: a collection created or renamed after the
-  // first resolution within this process won't be re-detected — acceptable,
-  // since topology doesn't change under a running app. Only the metadata
-  // round-trip is cached; the per-operation decision logic still runs each
-  // time, so compatibility-mode errors are thrown with the correct operation.
-  const loadCollectionNames = memoizeAsync(() => loadDbCollectionNames(db));
+  // Load the database's collection-name set at most once per `Db` and reuse it
+  // for every operation across every repository built against that `Db`. The
+  // cache lives at the db level (see {@link loadDbCollectionNamesCached}), not
+  // per repository instance, so the common pattern of constructing a fresh
+  // session-bound repository per operation still resolves the set only once
+  // rather than re-listing on every call. The topology is effectively static
+  // while the app runs, so re-listing buys nothing but latency. Trade-off: a
+  // collection created or renamed after the first resolution within this
+  // process won't be re-detected — acceptable, since topology doesn't change
+  // under a running app. Only the metadata round-trip is cached; the
+  // per-operation decision logic still runs each time, so compatibility-mode
+  // errors are thrown with the correct operation.
+  const loadCollectionNames = () => loadDbCollectionNamesCached(db);
 
   async function resolveCollection(operation: ZogOperation): Promise<Collection<Document>> {
     const resolvedCollectionName = await resolveCollectionNameCompatibility({
@@ -1227,7 +1230,7 @@ function assertCollectionNamePolicy(context: {
 /**
  * Load the set of collection names that currently exist in the database.
  * This is the metadata round-trip behind compatibility resolution; callers on
- * hot paths should memoize it (see {@link memoizeAsync}).
+ * hot paths should go through {@link loadDbCollectionNamesCached}.
  */
 async function loadDbCollectionNames(db: Db): Promise<Set<string>> {
   const collections = await db
@@ -1238,6 +1241,30 @@ async function loadDbCollectionNames(db: Db): Promise<Set<string>> {
       .map((collection) => collection.name)
       .filter((name): name is string => typeof name === "string"),
   );
+}
+
+// Db-level cache of the collection-name set, keyed by `Db` identity. Every
+// repository built against the same `Db` — however many are constructed, and
+// regardless of session — shares one entry, so a fresh per-operation repository
+// triggers no extra `listCollections`. A `WeakMap` keys on object identity and
+// lets a discarded `Db`/`MongoClient` be collected, so the cache neither leaks
+// nor bleeds across databases: two different `Db` instances resolve
+// independently. A rejection is not cached — the next call retries rather than
+// poisoning the value forever (e.g. a dropped connection during resolution).
+const collectionNamesByDb = new WeakMap<Db, Promise<Set<string>>>();
+
+function loadDbCollectionNamesCached(db: Db): Promise<Set<string>> {
+  const cached = collectionNamesByDb.get(db);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const pending = loadDbCollectionNames(db).catch((error) => {
+    collectionNamesByDb.delete(db);
+    throw error;
+  });
+  collectionNamesByDb.set(db, pending);
+  return pending;
 }
 
 async function resolveCollectionNameCompatibility(

@@ -1125,7 +1125,7 @@ describe("Zog repository", () => {
     expect(fake.listCollectionsCallCount).toBe(1);
   });
 
-  it("scopes compatibility resolution per model so separate models don't share it", async () => {
+  it("shares the collection-name set across models on the same db", async () => {
     const stores = createModel("stores", userSchema, {
       collectionName: "store_metadata",
       legacyCollectionNames: ["store-metadata"],
@@ -1148,8 +1148,66 @@ describe("Zog repository", () => {
     await db.stores.findOne({});
     await db.accounts.findOne({});
 
-    // One resolution per model, regardless of how many times each is used.
-    expect(fake.listCollectionsCallCount).toBe(2);
+    // The listCollections round-trip is cached at the db level, so the whole
+    // set of collection names is loaded once and shared across every model
+    // resolving against the same db. Per-model decision logic still runs each
+    // call, but it reuses the one cached set.
+    expect(fake.listCollectionsCallCount).toBe(1);
+  });
+
+  it("resolves at most one listCollections across many fresh repositories on one db", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const fake = createFakeMongoClient();
+    fake.collection("store-metadata").documents.set(user.id, {
+      ...user,
+      _id: user.id,
+    });
+    const sharedDb = fake.client.db("test");
+    fake.collection("store_metadata").namespaceExists = false;
+
+    // The common downstream pattern: a fresh, session-bound repository built
+    // per operation. With a per-instance cache each of these would re-list;
+    // with the db-level cache they all share one round-trip.
+    for (let operation = 0; operation < 5; operation += 1) {
+      const repository = createMongoZodCollection(sharedDb, model, {
+        collectionNameCompatibility: "error",
+      });
+      await repository.findById(user.id);
+    }
+
+    expect(fake.listCollectionsCallCount).toBe(1);
+  });
+
+  it("does not leak the collection-name cache across databases", async () => {
+    const model = createModel("stores", userSchema, {
+      collectionName: "store_metadata",
+      legacyCollectionNames: ["store-metadata"],
+      primaryKey: "id",
+    });
+    const first = createFakeMongoClient();
+    const second = createFakeMongoClient();
+    const firstDb = defineDb([model] as const, {
+      mongoClient: first.client,
+      databaseName: "test",
+      collectionNameCompatibility: "error",
+    });
+    const secondDb = defineDb([model] as const, {
+      mongoClient: second.client,
+      databaseName: "test",
+      collectionNameCompatibility: "error",
+    });
+
+    await firstDb.stores.findOne({});
+    await secondDb.stores.findOne({});
+
+    // Two different MongoClients hand back two different Db instances, so each
+    // resolves independently — the cache is keyed by Db identity.
+    expect(first.listCollectionsCallCount).toBe(1);
+    expect(second.listCollectionsCallCount).toBe(1);
   });
 
   it("runs beforeEnsureIndexes before creating configured indexes", async () => {
