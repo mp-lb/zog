@@ -168,7 +168,7 @@
       "storageClass": "text",
       "hash": "sha256:7b214101691fdf5b86389e9a6827495fe07191526c7a768ab7537ec1a1c12d8d",
       "isExecutable": true,
-      "lastSyncedAt": "2026-06-02T16:42:50.979Z",
+      "lastSyncedAt": "2026-06-03T15:49:16.123Z",
       "remoteFileId": "68dd3a6d-1b88-450a-be21-d537c5932d04",
       "remotePath": "/extensions/clerk.md",
       "remoteUpdatedAt": "2026-05-29T18:24:15.872Z",
@@ -189,7 +189,7 @@
       "storageClass": "text",
       "hash": "sha256:e1876897824b277e40b4be95ffd250097d8f00de7434cd6708d1ad35981091a4",
       "isExecutable": true,
-      "lastSyncedAt": "2026-06-02T16:42:50.979Z",
+      "lastSyncedAt": "2026-06-03T15:49:16.123Z",
       "remoteFileId": "75644b08-de11-4b14-afe8-4dccc9efb16f",
       "remotePath": "/extensions/mongodb.md",
       "remoteUpdatedAt": "2026-05-29T18:24:16.795Z",
@@ -299,44 +299,254 @@
       "remoteUpdatedAt": "2026-06-02T02:47:31.660Z",
       "remoteRevisionNumber": 1
     },
-    "docs/skills/marketing-positioning.md": {
+    "docs/skills/AGENTS.md": {
       "storageClass": "text",
-      "hash": "sha256:b5c3dcf98b18cd74f5e91db4dc0aea5ad20b6d849535b2dc6d59b08e228aa70d",
-      "lastSyncedAt": "2026-05-29T18:25:26.831Z",
-      "remoteFileId": "ab4ffa66-df67-4a9b-95ce-2cb02d1e8796",
-      "remotePath": "/skills/marketing-positioning.md",
-      "remoteUpdatedAt": "2026-05-29T16:41:36.884Z",
+      "hash": "sha256:4860f8269f39ba5905ed491b811b414ead101e996420adc25331f7185192579f",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "7788bdac-9eac-461d-9fcf-c8d2031db219",
+      "remotePath": "/skills/AGENTS.md",
+      "remoteUpdatedAt": "2026-05-22T19:27:32.273Z",
+      "remoteRevisionNumber": 3,
+      "source": "reference"
+    },
+    "docs/skills/README.md": {
+      "storageClass": "text",
+      "hash": "sha256:8071287525d9f6854952826dd3e1fe97f0fbe4395e1a4cc927a5588141c1eb7e",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "5a4ed3be-9db7-4cc9-a1e0-4c84fbecb4c4",
+      "remotePath": "/skills/README.md",
+      "remoteUpdatedAt": "2026-05-22T21:55:43.366Z",
+      "remoteRevisionNumber": 10,
+      "source": "reference"
+    },
+    "docs/skills/authored-skills/value-analysis/SKILL.md": {
+      "storageClass": "text",
+      "hash": "sha256:bc0a4222bbb2bdefcd0798d2114bca16b6e5c90dd951ef5f4f849d4c7d51db96",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "852b99a5-33ce-4c67-b16f-2b76848bb9d9",
+      "remotePath": "/skills/authored-skills/value-analysis/SKILL.md",
+      "remoteUpdatedAt": "2026-05-22T22:22:44.983Z",
+      "remoteRevisionNumber": 5,
+      "source": "reference"
+    },
+    "docs/skills/authored-skills/value-analysis/references/index.md": {
+      "storageClass": "text",
+      "hash": "sha256:16eb742d32440a8e61479df4e3515af2d6b82a34a1d6bfcd53a3fc990bab5ea4",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "b7f45df2-d0ac-4930-94bd-85f7288e3879",
+      "remotePath": "/skills/authored-skills/value-analysis/references/index.md",
+      "remoteUpdatedAt": "2026-05-22T22:28:04.170Z",
+      "remoteRevisionNumber": 6,
+      "source": "reference"
+    },
+    "docs/skills/authored-skills/value-analysis/references/inputs.md": {
+      "storageClass": "text",
+      "hash": "sha256:e80ff4da9425443a809b76e14e40527959282a0ca26e6db9fc1e1df3b7ef4c82",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "cef8710a-a7d6-4627-aca9-b7c12710e6d0",
+      "remotePath": "/skills/authored-skills/value-analysis/references/inputs.md",
+      "remoteUpdatedAt": "2026-05-22T19:34:26.022Z",
+      "remoteRevisionNumber": 2,
+      "source": "reference"
+    },
+    "docs/skills/authored-skills/value-analysis/references/marketing-positioning.md": {
+      "storageClass": "text",
+      "hash": "sha256:cb9b2d6aa559cb7a5a3c78f1949e95601121d4319fd55b6ebec99f3be32666a9",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "7f2c1b0b-1d03-4ff0-85ea-a1b5791f0d69",
+      "remotePath": "/skills/authored-skills/value-analysis/references/marketing-positioning.md",
+      "remoteUpdatedAt": "2026-05-22T21:52:36.617Z",
+      "remoteRevisionNumber": 3,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/README.md": {
+      "storageClass": "text",
+      "hash": "sha256:c5eac27d4e9f120356a247e239d229062e03becc828e03ffe0ab54e96c27f4bc",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "7fb718f2-5109-4baa-8257-25c9788e8a0b",
+      "remotePath": "/skills/testing-ground/test1/README.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:30.654Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/positioning.md": {
+      "storageClass": "text",
+      "hash": "sha256:af32b3f85157d73db174c7927e4321da47760c22813e37f00019fe8df7e12a1b",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "1fd8eb7d-0280-47fb-96ed-1277a3751760",
+      "remotePath": "/skills/testing-ground/test1/positioning.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:07.509Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/unique-value.md": {
+      "storageClass": "text",
+      "hash": "sha256:6ad52ee415e1af4e2a8c0c1c08efc8676fc6bcba277557daa4758a3b9dac2e04",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "f84e2ad3-0c4c-4e6f-a555-59adf41fd048",
+      "remotePath": "/skills/testing-ground/test1/unique-value.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:29.763Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/what-do-buyers-do-today.md": {
+      "storageClass": "text",
+      "hash": "sha256:6ea1e33e1462648b6f3f17ed992d7d9253618ee3db90e9a41e3d025492ccfb7d",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "8924905b-c399-44e1-927f-c2521d60e5ac",
+      "remotePath": "/skills/testing-ground/test1/what-do-buyers-do-today.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:32.845Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/what-does-it-do.md": {
+      "storageClass": "text",
+      "hash": "sha256:d0764526a2fc63988efcd7bddc189c7dd0e884b39d296d00b8c60dc9713cb48d",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "b76ee42b-d089-404b-851a-ccac758bcf34",
+      "remotePath": "/skills/testing-ground/test1/what-does-it-do.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:28.552Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test1/who-is-it-for.md": {
+      "storageClass": "text",
+      "hash": "sha256:854be8d12c424c2cccf41ba654f4442c789feb1bbb6e373d5c957c1a656afbf2",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "5a13f886-4b9a-4b8d-976a-d91655b80c85",
+      "remotePath": "/skills/testing-ground/test1/who-is-it-for.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:27.510Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/README.md": {
+      "storageClass": "text",
+      "hash": "sha256:a5669f12580a9fe497dd732e945c00900ffe5974ffa96c50db5956e738893b87",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "8c2856fb-9576-4018-a367-f8b973c67928",
+      "remotePath": "/skills/testing-ground/test2/README.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:25.503Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/ideal-customer.md": {
+      "storageClass": "text",
+      "hash": "sha256:cba835538621707c7cf348583f0abb330a53af2b729b41522593ea903ec5ee16",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "7e0ee764-7a04-440a-92de-04b69888e802",
+      "remotePath": "/skills/testing-ground/test2/ideal-customer.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:31.485Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/list-of-competitors.md": {
+      "storageClass": "text",
+      "hash": "sha256:2fdf7aede133a2291ceef163df49669aae45de3605de77720ff99b840436fa7d",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "261c1fbc-a330-4361-b74d-e91d3b6af140",
+      "remotePath": "/skills/testing-ground/test2/list-of-competitors.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:33.272Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/market-context.md": {
+      "storageClass": "text",
+      "hash": "sha256:a56aa6be0253afc4030fbb7b9adb8ceb0ce7e5be359c130ccf3671642c9e7d8e",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "2edebf46-d45c-4f32-88ec-7815ea51fc69",
+      "remotePath": "/skills/testing-ground/test2/market-context.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:34.318Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/open-questions.md": {
+      "storageClass": "text",
+      "hash": "sha256:ab8ae227727ac4385f54d18c3391aca86c469bcd820e870cf18fb5a7fde7c3aa",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "70e6cf60-b409-4773-952e-d7aa3fa66c9b",
+      "remotePath": "/skills/testing-ground/test2/open-questions.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:19.074Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/positioning-statement.md": {
+      "storageClass": "text",
+      "hash": "sha256:4ec74728c152d3ab7e4105a771b73605cdfef6a76133fb585f0bddb8d1c2a4b1",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "9ff629f8-b478-433a-83db-6e93894f812c",
+      "remotePath": "/skills/testing-ground/test2/positioning-statement.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:14.290Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/product-features.md": {
+      "storageClass": "text",
+      "hash": "sha256:354ce979107e6854652d8801543b64ed1e60a01c5bfbfe706bd5c978141887b3",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "79d35d7c-20fd-4355-8ee6-37773d202ea2",
+      "remotePath": "/skills/testing-ground/test2/product-features.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:42.441Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/source-material.md": {
+      "storageClass": "text",
+      "hash": "sha256:d4696c75952aea856f3f15f82e10826ab0c66c79b1b4907648b37c6fbf32a254",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "b719e90f-3d40-47ef-9079-1e130064b2bf",
+      "remotePath": "/skills/testing-ground/test2/source-material.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:38.307Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/unique-capabilities.md": {
+      "storageClass": "text",
+      "hash": "sha256:abf30e3bd616fb6baebf6e2bc6035fe73c65b966d015cbcd87df0d2c91599f50",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "86fea7d0-136f-420e-a8a0-3110e4fb7a49",
+      "remotePath": "/skills/testing-ground/test2/unique-capabilities.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:40.442Z",
+      "remoteRevisionNumber": 1,
+      "source": "reference"
+    },
+    "docs/skills/testing-ground/test2/value-drivers.md": {
+      "storageClass": "text",
+      "hash": "sha256:dd20b392ea420b6c47baae31a8a3d44db41f6f342c29a5cec6837d3eafa0bbb8",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "92e28b85-84c8-4050-b801-2c2b6838593b",
+      "remotePath": "/skills/testing-ground/test2/value-drivers.md",
+      "remoteUpdatedAt": "2026-06-02T05:24:39.542Z",
       "remoteRevisionNumber": 1,
       "source": "reference"
     },
     "docs/skills/value-analysis/index.md": {
       "storageClass": "text",
-      "hash": "sha256:f27edc2b326f42541d1216c0d5f753f1d62762cb236b171e2befd02cb174e71b",
-      "lastSyncedAt": "2026-05-29T18:26:13.440Z",
-      "remoteFileId": "3b2fe0c6-303e-4d0d-baaa-bb444c616f9c",
+      "hash": "sha256:e0aa83055efe21cbad37a6eb14336e78135062cd6739cba442715d3160e9b5d5",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "161f865d-80a6-427f-92a0-9a2f6a9be4d3",
       "remotePath": "/skills/value-analysis/index.md",
-      "remoteUpdatedAt": "2026-05-29T18:26:03.364Z",
-      "remoteRevisionNumber": 1,
+      "remoteUpdatedAt": "2026-05-22T22:13:41.457Z",
+      "remoteRevisionNumber": 38,
       "source": "reference"
     },
     "docs/skills/value-analysis/inputs.md": {
       "storageClass": "text",
-      "hash": "sha256:e24fcced8adefb84891be3538a0e351dffc41f75772775281ff9808245d6c483",
-      "lastSyncedAt": "2026-05-29T18:25:26.831Z",
-      "remoteFileId": "a531ceb2-5a5f-452d-a021-00dcee1e7693",
+      "hash": "sha256:e80ff4da9425443a809b76e14e40527959282a0ca26e6db9fc1e1df3b7ef4c82",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "90915bcc-ea62-4c7a-983e-89c810bb3cb3",
       "remotePath": "/skills/value-analysis/inputs.md",
-      "remoteUpdatedAt": "2026-05-29T18:25:01.363Z",
-      "remoteRevisionNumber": 1,
+      "remoteUpdatedAt": "2026-05-22T19:34:26.262Z",
+      "remoteRevisionNumber": 60,
       "source": "reference"
     },
     "docs/skills/value-analysis/marketing-positioning.md": {
       "storageClass": "text",
-      "hash": "sha256:b5c3dcf98b18cd74f5e91db4dc0aea5ad20b6d849535b2dc6d59b08e228aa70d",
-      "lastSyncedAt": "2026-05-29T18:26:13.440Z",
-      "remoteFileId": "3f697a04-b2f4-4b55-b22c-b4bee50d8977",
+      "hash": "sha256:e26c34f0b64bd4156e0c3f3ef5b435bc9d725d6219017f94a53858abc202cf78",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "d74aaea9-ab3b-48e3-b143-d8ad49a4cc0b",
       "remotePath": "/skills/value-analysis/marketing-positioning.md",
-      "remoteUpdatedAt": "2026-05-29T18:26:03.463Z",
-      "remoteRevisionNumber": 1,
+      "remoteUpdatedAt": "2026-05-22T19:34:26.239Z",
+      "remoteRevisionNumber": 30,
       "source": "reference"
     },
     "docs/standards/admin-panel-pattern.md": {
@@ -397,6 +607,16 @@
       "remotePath": "/standards/crud.md",
       "remoteUpdatedAt": "2026-05-15T06:17:35.507Z",
       "remoteRevisionNumber": 3,
+      "source": "reference"
+    },
+    "docs/standards/domain-extraction.md": {
+      "storageClass": "text",
+      "hash": "sha256:f98b96952e8a13391bd4818a2d16529aa015acb535f829da52e7f8139f8b35b2",
+      "lastSyncedAt": "2026-06-03T15:41:55.658Z",
+      "remoteFileId": "b99e456c-89b2-4b8f-85ae-f3ad8512afc4",
+      "remotePath": "/standards/domain-extraction.md",
+      "remoteUpdatedAt": "2026-06-03T14:45:15.882Z",
+      "remoteRevisionNumber": 1,
       "source": "reference"
     },
     "docs/standards/env-vars.md": {
@@ -711,23 +931,23 @@
   },
   "references": {
     "docs/agents-md/fssstack": {
-      "lastSeenAt": "2026-06-02T16:42:50.979Z",
+      "lastSeenAt": "2026-06-03T15:49:16.123Z",
       "type": "store-reference"
     },
     "docs/examples": {
-      "lastSeenAt": "2026-06-02T16:42:50.979Z",
+      "lastSeenAt": "2026-06-03T15:49:16.123Z",
       "type": "store-reference"
     },
     "docs/extensions": {
-      "lastSeenAt": "2026-06-02T16:42:50.979Z",
+      "lastSeenAt": "2026-06-03T15:49:16.123Z",
       "type": "store-reference"
     },
     "docs/skills": {
-      "lastSeenAt": "2026-06-02T16:42:50.979Z",
+      "lastSeenAt": "2026-06-03T15:49:16.123Z",
       "type": "store-reference"
     },
     "docs/standards": {
-      "lastSeenAt": "2026-06-02T16:42:50.979Z",
+      "lastSeenAt": "2026-06-03T15:49:16.123Z",
       "type": "store-reference"
     }
   },
