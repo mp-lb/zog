@@ -39,18 +39,18 @@ See [https://docs.zapper.mp-lb.dev/llms-full.txt](https://docs.zapper.mp-lb.dev/
 ## Standards
 
 Read these before making changes:
-- docs/standards/style-guide.md - For significant code changes
-- docs/standards/crud.md - For implementing simple CRUD patterns
-- docs/standards/errors.md - For throwing and handling errors
-- docs/standards/services.md - For adding/removing services, frontends, databases, or updating infrastructure configuration
-- docs/standards/trpc.md - For doing frontend queries/mutations
-- docs/standards/logging.md - For logging on backend (via tRPC context) and frontend
-- docs/standards/event-schema.md - For sending/storing any kind of events: errors, logs, analytics, real time events follow this
+- docs/tech/standards/style-guide.md - For significant code changes
+- docs/tech/standards/crud.md - For implementing simple CRUD patterns
+- docs/tech/standards/errors.md - For throwing and handling errors
+- docs/tech/standards/services.md - For adding/removing services, frontends, databases, or updating infrastructure configuration
+- docs/tech/standards/trpc.md - For doing frontend queries/mutations
+- docs/tech/standards/logging.md - For logging on backend (via tRPC context) and frontend
+- docs/tech/standards/event-schema.md - For sending/storing any kind of events: errors, logs, analytics, real time events follow this
 
 ## Releases
 
 For package releases, read the release standard:
-- docs/standards/lib-release.md - For publishable library packages (including those that ship a `bin`)
+- docs/tech/standards/lib-release.md - For publishable library packages (including those that ship a `bin`)
 
 ## Tech stack
 
@@ -84,7 +84,7 @@ Take extra care when organizing tests.
 
 ### Tech debt
 
-In general, follow the boy scout principle. But if you come across tech debt that's too big to address, add a .md doc to docs/tech-debt and raise it with the user.
+In general, follow the boy scout principle. But if you come across tech debt that's too big to address, add a .md doc to docs/tech/tech-debt and raise it with the user.
 
 ## Working locally
 
