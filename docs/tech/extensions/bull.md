@@ -128,7 +128,7 @@ Create a worker process, e.g. `apps/worker/package.json`:
     "start": "tsx src/index.ts",
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "<queue-package>": "workspace:*",

@@ -16,11 +16,17 @@ importers:
         specifier: 2.31.0
         version: 2.31.0(@types/node@20.19.39)
       '@mp-lb/fssstack-config':
-        specifier: 0.2.0
-        version: 0.2.0(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)
+        specifier: 0.3.1
+        version: 0.3.1(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)
       '@types/node':
         specifier: 20.19.39
         version: 20.19.39
+      eslint:
+        specifier: 9.39.4
+        version: 9.39.4(jiti@2.7.0)
+      prettier:
+        specifier: 3.8.3
+        version: 3.8.3
       tsx:
         specifier: 4.20.6
         version: 4.20.6
@@ -930,12 +936,16 @@ packages:
   '@mongodb-js/saslprep@1.4.11':
     resolution: {integrity: sha512-o9rAHc0IpIjuPSxRutWpE1F62x7n+4mVS4rCNHkzhIUMQcc18bb6xEq5wd2NdN0WjepIyXIppRshYI2kQDOZVA==}
 
-  '@mp-lb/fssstack-config@0.2.0':
-    resolution: {integrity: sha512-B4saE9V/4Q6kT22pVMbZliU7Qai2MYNKbGhoz+/dSDMHJ+mqVE20FHEQ37r5ZDKC9fm0XMH2aZH9XEVo5fOVDQ==}
+  '@mp-lb/fssstack-config@0.3.1':
+    resolution: {integrity: sha512-JyBK9fVzSfdu8XyIIb33+o6jT9dnByJBP1juTrtirkkXJQU+DtZYfrXUHnU17NspK61NGw0V80VhIl0hVHBjPw==}
     peerDependencies:
       eslint: '>=9'
+      eslint-config-next: '>=15'
       prettier: '>=3'
       typescript: '>=5'
+    peerDependenciesMeta:
+      eslint-config-next:
+        optional: true
 
   '@mp-lb/tools-fumadocs-preset@0.3.0':
     resolution: {integrity: sha512-5y8TjgtccPG+/SmDYWPXdpSfA79Jo7g5xMLjnbfeVyblXx3bohx2hkK2iRxIGKseWKchPX0v8e1Ij8UaW/BITw==}
@@ -5466,7 +5476,7 @@ snapshots:
     dependencies:
       sparse-bitfield: 3.0.3
 
-  '@mp-lb/fssstack-config@0.2.0(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)':
+  '@mp-lb/fssstack-config@0.3.1(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)':
     dependencies:
       '@eslint/js': 9.39.4
       eslint: 9.39.4(jiti@2.7.0)

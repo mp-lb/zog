@@ -4,9 +4,9 @@
 
 A few conventions about these instruction files themselves:
 
-- **The source is `agents-md/` building blocks; the agent files are *compiled* from them.** `etc/etc/etc/etc/etc/etc/agents-md/index.md` composes the blocks — an H1, a short intro, and a flat list of `@<block>.md` imports: the project's own blocks plus shared blocks pulled in via store references (e.g. `@fssstack/<block>.md`). The blocks + `index.md` are the **only** things you hand-edit.
+- **The source is `agents-md/` building blocks; the agent files are *compiled* from them.** `agents-md/index.md` composes the blocks — an H1, a short intro, and a flat list of `@<block>.md` imports: the project's own blocks plus shared blocks pulled in via store references (e.g. `@fssstack/<block>.md`). The blocks + `index.md` are the **only** things you hand-edit.
 - **`CLAUDE.md` and `AGENTS.md` are generated outputs, not source.** [`@mp-lb/mdcompile`](https://www.npmjs.com/package/@mp-lb/mdcompile) compiles `index.md` into one flat file per agent — `CLAUDE.md` for Claude, `AGENTS.md` for Codex and the de-facto standard (same content). They're **gitignored — compiled locally, never committed, never hand-edited.** Regenerate with `zap task compile-agents`. No agent's native import syntax is load-bearing, so supporting another agent is just another compile target.
-- **The compiled agent file is small on purpose.** It carries the always-true essentials and *points* at the detailed `docs/tech/standards/*` for the rest — read those on demand rather than expecting everything to be in context.
+- **The compiled agent file is small on purpose.** It carries the always-true essentials and *points* at the detailed `docs/standards/*` for the rest — read those on demand rather than expecting everything to be in context.
 
 ## Tools you can expect to be authenticated
 

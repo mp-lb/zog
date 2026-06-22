@@ -7,5 +7,3 @@ Always read `AGENTS.md` when starting new chats if it exists.
 @workspace.md
 
 @validation.md
-
-@~/Code/mgr/agents-md/global.md

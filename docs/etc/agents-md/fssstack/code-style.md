@@ -19,4 +19,4 @@ Take extra care when organizing tests.
 
 ### Tech debt
 
-In general, follow the boy scout principle. But if you come across tech debt that's too big to address, add a .md doc to docs/tech/tech-debt and raise it with the user.
+In general, follow the boy scout principle. But if you come across tech debt that's too big to address, add a .md doc to docs/tech-debt and raise it with the user.

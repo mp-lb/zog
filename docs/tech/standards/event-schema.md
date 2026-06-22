@@ -41,7 +41,20 @@ interface Event {
 
 ## Event type
 
-`eventType` should describe an externally observable fact, not internal decision logic. If more than one word is needed to describe the “state”, that information belongs in details, not in the event name.
+`eventType` should describe an externally observable fact, not internal decision logic.
+
+For event-sourced records, enforce:
+
+```ts
+eventType.match(/^[a-z]+(?:_[a-z]+)*(?:\.[a-z]+(?:_[a-z]+)*)+$/);
+```
+
+Examples:
+
+```ts
+"property.created";
+"maintenance.action_proposed";
+```
 
 ## Details
 

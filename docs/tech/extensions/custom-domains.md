@@ -13,7 +13,7 @@ For a custom domain, there are four places to update:
 
 1. Terraform domain inputs in `infra/terraform.tfvars`.
 2. Production URLs in `.env.production`.
-3. Runbook URLs in `docs/platform/deployment-runbook.md`.
+3. Runbook URLs in the project's deployment runbook.
 4. DNS/domain ownership setup in Vercel, Cloud Run/Search Console, and the DNS provider.
 
 The app itself only cares about `VITE_API_BASE_URL` and `FRONTEND_URL`. The hosting providers care about domain ownership, certificate provisioning, and DNS records.
@@ -170,4 +170,3 @@ the new API domain.
 - Keep Cloudflare records DNS-only unless there is a tested reason to proxy them. The current Terraform sets `proxied = false`.
 - Vercel may show a project-specific CNAME target. Prefer the value from Vercel's domain inspection over a hardcoded target when they differ.
 - If both `example.com` and `www.example.com` are used, configure one as canonical and redirect the other in Vercel to avoid duplicate frontend domains.
-

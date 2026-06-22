@@ -18,7 +18,7 @@ Do not extract basic CRUD, simple query shaping, formatting helpers, or one-off 
 
 ## Package Boundary
 
-The extracted package owns the domain model, schemas, pure operations, and invariants. Code outside the package should call its public API instead of reimplementing domain rules.
+The extracted package owns the domain model, the schemas whose meaning and invariants are domain-owned, pure operations, and invariants. If the project has a central schema package or schema folder, it can re-export domain-owned schemas from the domain package as the shared import surface. Code outside the package should call the package's public API instead of reimplementing domain rules.
 
 Keep the boundary small:
 
@@ -26,6 +26,24 @@ Keep the boundary small:
 - Hide internal structures unless callers truly need them.
 - Keep browser-safe logic browser-safe so the frontend can use it when useful.
 - Split server-only adapters from pure logic when the domain needs database, filesystem, or network access.
+
+## Query Boundaries
+
+Keep mutations aggregate-oriented: load the domain-owned value, call a domain operation, and persist the returned value at the application boundary.
+
+Put domain-owned query helpers in a `queries/` folder when persistence queries encode domain rules such as visibility, deletion state, hierarchy, references, or pattern matching.
+
+Query helpers may return persistence-shaped specs, such as Mongo filters or projection inputs. They must not execute IO, open database clients, own transactions, or know collection names.
+
+Example:
+
+```ts
+const filter = storeTreeQueries.visibleChildFiles({ parentDirectoryId });
+const records = await files.find(filter).toArray();
+return storeTree.listVisibleFiles(tree, records);
+```
+
+Storage adapters execute query specs and own indexing, transactions, and connections.
 
 ## App Boundary
 

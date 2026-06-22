@@ -158,3 +158,4 @@ const users = db.collection("users");
 await users.insertOne({ name: "Alice" });
 const user = await users.findOne({ name: "Alice" });
 ```
+
