@@ -1,5 +1,0 @@
-git:
-  commit-message: Update doctrine docs
-sync:
-  - target: docs
-    store: felixsebastian/zog
