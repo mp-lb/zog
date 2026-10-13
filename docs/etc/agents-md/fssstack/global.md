@@ -53,11 +53,7 @@ We always keep CLIs built, and make sure the local PATH command is linked to the
 You're rarely the only agent at work — multiple agents run in the same repo, often the same branch, at once.
 
 - **A dirty tree is normal — it doesn't block you.** Do your own work; don't touch the files someone else is changing, and when you commit, stage only your own files. Only **stop** if your change genuinely collides with a file in flight. Unfamiliar edits are almost certainly another agent's — work around them.
-- **Collaboration is often coordinated through RFWs** (below).
-
-## Requests for Work (RFWs)
-
-Discrete work is handed off as **Requests for Work** — a single markdown file carrying the spec for one piece of work: a short header plus **Spec** (definition of done) and **Context**. It's not a ticket — just a clear written spec that travels with the work. Managed in `mgr`: unread `~/Code/mgr/rfw/<project>/<slug>.md`, read `~/Code/mgr/rfw/<project>/read/<slug>.md`. Move it to `read/` as soon as the project picks it up. Template: `~/Code/mgr/processes/rfw.md`.
+- Coordinate work through the project’s current task tracker and explicit handoff instructions.
 
 ## Frontend patterns
 
