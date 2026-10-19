@@ -34,10 +34,8 @@ tasks:
         rm -f /tmp/.env.check; echo "secrets in sync"
   context-build:
     cmds:
-      - node scripts/context-files.mjs build {{REST}}
-  context-copy:
-    cmds:
-      - node scripts/context-files.mjs copy {{REST}}
+      - npx -y @mp-lb/mdcompile context/index.md --optional --silent | fm compile --stdin -o AGENTS.md
+      - npx -y @mp-lb/mdcompile context/index.md --optional --silent | fm compile --stdin -o CLAUDE.md
   compile-agents:
     cmds:
       - zap task context-build -- {{REST}}
