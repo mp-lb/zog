@@ -7,5 +7,6 @@ coverage
 apps/docs/.source
 AGENTS.local.md
 AGENTS_WORKTREE.md
+.forum/
 
 # Agent files are compiled from agents-md/index.md via `zap t compile-agents`; not committed.
