@@ -16,8 +16,8 @@ importers:
         specifier: 2.31.0
         version: 2.31.0(@types/node@20.19.39)
       '@mp-lb/arcnet':
-        specifier: 0.7.2
-        version: 0.7.2
+        specifier: 0.7.9
+        version: 0.7.9
       '@mp-lb/fssstack-config':
         specifier: 0.3.1
         version: 0.3.1(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)
@@ -939,8 +939,8 @@ packages:
   '@mongodb-js/saslprep@1.4.11':
     resolution: {integrity: sha512-o9rAHc0IpIjuPSxRutWpE1F62x7n+4mVS4rCNHkzhIUMQcc18bb6xEq5wd2NdN0WjepIyXIppRshYI2kQDOZVA==}
 
-  '@mp-lb/arcnet@0.7.2':
-    resolution: {integrity: sha512-P3t9VLv6FRR3OVbD20toY/1OW+nFr6iC+ZYAGV4O1aS2aaQX+cwozP9XfgnTMNTmyLqc4CIMEkp57yMkBa+ldg==}
+  '@mp-lb/arcnet@0.7.9':
+    resolution: {integrity: sha512-dhnRcErkoMwl67+xhYZQA4Yt9tncfspoMAybTZ0SIx3+tRNZf8nY3P3Keq8f1+tN8CstNuP7MYLuPBgrYluoEg==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -972,8 +972,8 @@ packages:
     resolution: {integrity: sha512-kwgdR5hVigsib5dz7cjWhHXhkY+NWJbqGV/ik25PJWwHcVGNFsJ0VszQtM8Uwlbj7vt4VJaGvdnhXoON9XqmvQ==}
     engines: {node: '>=18.0.0'}
 
-  '@mp-lb/zapper@0.21.5':
-    resolution: {integrity: sha512-GNSNKKUaAe8VGYZJeeVDCe1vfUto0fF66CnjJXNO7Df1e1EU7JQ0ULrKHM09BZKNlcA4kDA3owQonkakD3IbCA==}
+  '@mp-lb/zapper@0.21.8':
+    resolution: {integrity: sha512-ycAlZIaP0buaY/FtsO7m0NFlfUmYAT3W6N5efxkVXPqgdTgPUgfsMQ4kH8KNQiIXOqSBLV99ymbeHJtxg6AkAA==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -5526,10 +5526,10 @@ snapshots:
     dependencies:
       sparse-bitfield: 3.0.3
 
-  '@mp-lb/arcnet@0.7.2':
+  '@mp-lb/arcnet@0.7.9':
     dependencies:
       '@mp-lb/forum-secrets': 0.2.1
-      '@mp-lb/zapper': 0.21.5
+      '@mp-lb/zapper': 0.21.8
       commander: 14.0.3
       yaml: 2.8.1
       zod: 4.4.1
@@ -5572,7 +5572,7 @@ snapshots:
       yaml: 2.8.1
       zod: 4.4.3
 
-  '@mp-lb/zapper@0.21.5':
+  '@mp-lb/zapper@0.21.8':
     dependencies:
       '@mp-lb/zapper-sdk': 0.20.1
       commander: 14.0.3

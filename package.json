@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "2.31.0",
-    "@mp-lb/arcnet": "0.7.2",
+    "@mp-lb/arcnet": "0.7.9",
     "@mp-lb/fssstack-config": "0.3.1",
     "@types/node": "20.19.39",
     "eslint": "9.39.4",
