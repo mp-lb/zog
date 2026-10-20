@@ -2,14 +2,12 @@ version: 1
 project: zog
 environment: mp-lb
 repository: mp-lb/zog
-approved: true
 vercel:
   dnsZone: mp-lb.dev
   sites:
     landing-page:
       domain: zog.mp-lb.dev
       mode: new
-      creationApproved: true
       projectName: arcnet.zog.landing-page
       root: apps/docs
       build: [pnpm, --filter, "@mp-lb/zog-docs", build]

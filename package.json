@@ -11,7 +11,7 @@
     "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
-    "@mp-lb/arcnet": "0.7.9",
+    "@mp-lb/arcnet": "0.7.11",
     "@mp-lb/fssstack-config": "0.3.1",
     "@types/node": "20.19.39",
     "eslint": "9.39.4",
