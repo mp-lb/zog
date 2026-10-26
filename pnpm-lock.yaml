@@ -18,6 +18,9 @@ importers:
       '@mp-lb/fssstack-config':
         specifier: 0.3.1
         version: 0.3.1(@typescript-eslint/parser@8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.4(jiti@2.7.0))(prettier@3.8.3)(typescript@5.9.3)
+      '@mp-lb/fssstack-testing':
+        specifier: 0.1.1
+        version: 0.1.1(mongodb@6.21.0)(vitest@4.0.16(@types/node@20.19.39)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6)(yaml@2.8.1))
       '@types/node':
         specifier: 20.19.39
         version: 20.19.39
@@ -885,6 +888,26 @@ packages:
       typescript: '>=5'
     peerDependenciesMeta:
       eslint-config-next:
+        optional: true
+
+  '@mp-lb/fssstack-testing@0.1.1':
+    resolution: {integrity: sha512-NeShAw1xZEhV3E0RhGAxlMdV4rgwCi6C2hVKVjnKjrcZdkd82vRlUdiWFXAuiZHdY7V6OFX1ZVu4abqjJvAsqw==}
+    peerDependencies:
+      '@playwright/test': '>=1.48'
+      '@testing-library/jest-dom': '>=6'
+      mongodb: '>=6'
+      mongodb-memory-server: '>=10'
+      vitest: '>=3'
+    peerDependenciesMeta:
+      '@playwright/test':
+        optional: true
+      '@testing-library/jest-dom':
+        optional: true
+      mongodb:
+        optional: true
+      mongodb-memory-server:
+        optional: true
+      vitest:
         optional: true
 
   '@mp-lb/tools-fumadocs-preset@0.3.0':
@@ -5097,6 +5120,11 @@ snapshots:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
       - supports-color
+
+  '@mp-lb/fssstack-testing@0.1.1(mongodb@6.21.0)(vitest@4.0.16(@types/node@20.19.39)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6)(yaml@2.8.1))':
+    optionalDependencies:
+      mongodb: 6.21.0
+      vitest: 4.0.16(@types/node@20.19.39)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.20.6)(yaml@2.8.1)
 
   '@mp-lb/tools-fumadocs-preset@0.3.0(fumadocs-core@16.8.12(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(lucide-react@1.16.0(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-router@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(zod@4.4.3))(fumadocs-ui@16.8.12(@tailwindcss/oxide@4.3.0)(@types/mdx@2.0.13)(@types/react-dom@19.2.3(@types/react@19.2.15))(@types/react@19.2.15)(fumadocs-core@16.8.12(@mdx-js/mdx@3.1.1)(@types/estree-jsx@1.0.5)(@types/hast@3.0.4)(@types/mdast@4.0.4)(@types/react@19.2.15)(lucide-react@1.16.0(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react-router@7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(zod@4.4.3))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(tailwindcss@4.3.0))(react@19.2.6)(tailwind-merge@3.6.0)':
     dependencies:
