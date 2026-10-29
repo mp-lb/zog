@@ -23,3 +23,5 @@ Always read `AGENTS.md` when starting new chats if it exists.
 @forum-standards.md
 
 @documentation.md
+
+@delivery.md
