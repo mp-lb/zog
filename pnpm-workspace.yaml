@@ -10,3 +10,6 @@ minimumReleaseAge: 0
 minimumReleaseAgeExclude:
   - '@mp-lb/tools-fumadocs-preset@0.2.0'
   - '@mp-lb/tools-fumadocs-preset@0.3.0'
+
+# Save exact external versions; internal dependencies use workspace:*.
+saveExact: true

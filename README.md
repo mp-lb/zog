@@ -29,3 +29,15 @@ zap up
 - [Schema evolution](docs/schema-evolution.md) covers legacy collection names, key renames, and custom normalization.
 - [Indexes](docs/indexes.md) covers declaring, diffing, and syncing MongoDB indexes.
 - [References](docs/references.md) covers modeling fields that contain another model's primary key.
+
+## Tool versions
+
+Use the exact Node version in `.node-version` and the pnpm version in
+`package.json#packageManager`. `engines.node` declares the minimum supported
+Node version; it is not a development pin. CI reads `.node-version`.
+
+With mise installed, run `mise trust`, then `mise install`. Use an activated
+mise shell or `mise exec -- <command>` so Zapper inherits these tools.
+For nvm, run `nvm install "$(cat .node-version)"` and
+`nvm use "$(cat .node-version)"`. Dependency policy lives in
+`pnpm-workspace.yaml`; use `workspace:*` for internal dependencies.
