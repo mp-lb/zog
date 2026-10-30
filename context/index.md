@@ -12,7 +12,6 @@
 @delivery.md
 
 <!-- Project types -->
-@library-cli.md
 
 <!-- Extensions -->
 @arcnet.md
