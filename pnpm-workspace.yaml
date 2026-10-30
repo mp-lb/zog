@@ -6,10 +6,11 @@ allowBuilds:
   esbuild: true
   msw: true
 
-minimumReleaseAge: 0
-minimumReleaseAgeExclude:
-  - '@mp-lb/tools-fumadocs-preset@0.2.0'
-  - '@mp-lb/tools-fumadocs-preset@0.3.0'
 
 # Save exact external versions; internal dependencies use workspace:*.
 saveExact: true
+
+# Consume our own releases immediately; age-check third-party packages.
+minimumReleaseAge: 1440
+minimumReleaseAgeExclude:
+  - '@mp-lb/*'
