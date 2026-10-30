@@ -24,6 +24,12 @@ tasks:
     desc: Introduce this project
     cmds:
       - pnpm --dir packages/scripts exec tsx index.ts
+  scripts-test:
+    cmds:
+      - pnpm --dir packages/scripts test
+  publish-packages:
+    cmds:
+      - pnpm exec tsx packages/scripts/autoPublish.ts {{REST}}
   scripts-check:
     desc: Lint and typecheck project scripts
     cmds:
