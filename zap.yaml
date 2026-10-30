@@ -47,12 +47,16 @@ tasks:
         dx decrypt --file docs/env.local.enc > /tmp/.env.check 2>/dev/null || { echo "no docs/env.local.enc"; exit 0; }
         if ! diff -q /tmp/.env.check .env >/dev/null 2>&1; then echo "WARN: .env differs from docs/env.local.enc - run: zap t secrets-lock"; rm -f /tmp/.env.check; exit 1; fi
         rm -f /tmp/.env.check; echo "secrets in sync"
-  context-copy:
-    cmds:
-      - pnpm exec tsx packages/scripts/contextFiles.ts copy {{REST}}
   context-build:
     cmds:
-      - pnpm exec tsx packages/scripts/contextFiles.ts build {{REST}}
+      - |
+        set -eu
+        context_temp=$(mktemp -d)
+        trap 'rm -rf "$context_temp"' EXIT
+        mdcompile context/index.md --silent -o "$context_temp/local.md"
+        fm compile --stdin -o "$context_temp/shared.md" < "$context_temp/local.md"
+        cp "$context_temp/shared.md" AGENTS.md
+        cp "$context_temp/shared.md" CLAUDE.md
   setup:
     cmds:
       - pnpm install
