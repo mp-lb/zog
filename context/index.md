@@ -25,3 +25,5 @@ Always read `AGENTS.md` when starting new chats if it exists.
 @documentation.md
 
 @delivery.md
+
+@scripts.md

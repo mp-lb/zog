@@ -20,6 +20,15 @@ native:
     cmd: ZOG_SITE_MODE=docs pnpm --filter @mp-lb/zog-docs dev --host 0.0.0.0 --port ${DOCS_PORT}
     env: "*"
 tasks:
+  scripts:
+    desc: Introduce this project
+    cmds:
+      - pnpm --dir packages/scripts exec tsx index.ts
+  scripts-check:
+    desc: Lint and typecheck project scripts
+    cmds:
+      - pnpm exec eslint packages/scripts
+      - pnpm --dir packages/scripts run typecheck
   secrets-unlock:
     cmds:
       - dx decrypt --file docs/env.local.enc > .env

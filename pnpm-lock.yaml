@@ -115,6 +115,12 @@ importers:
 
   packages/core: {}
 
+  packages/scripts:
+    devDependencies:
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
+
   packages/server:
     dependencies:
       '@mp-lb/zog-core':
