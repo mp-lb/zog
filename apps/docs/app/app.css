@@ -1,5 +1,5 @@
 @import 'tailwindcss';
-@import '@mp-lb/tools-fumadocs-preset/css';
+@import '@mp-lb/fumadocs-preset/css';
 
 :root {
   --zog-black: #020202;
