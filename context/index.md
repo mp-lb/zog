@@ -14,4 +14,5 @@
 <!-- Project types -->
 
 <!-- Extensions -->
-@arcnet.md
+
+[ArcNet](https://hyperdoc.forumlabs.net/232107c4-d98b-4065-851f-9e29d9b5497e)
