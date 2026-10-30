@@ -24,8 +24,8 @@ jobs:
           node-version-file: .node-version
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck && pnpm test && pnpm build
+      - run: pnpm exec eslint packages/scripts && pnpm typecheck && pnpm test && pnpm build
       - name: Publish changed package builds
-        run: pnpm exec arcnet env run --consumer publish -- node scripts/auto-publish.mjs
+        run: pnpm exec arcnet env run --consumer publish -- pnpm exec tsx packages/scripts/autoPublish.ts --github-output="$GITHUB_OUTPUT"
         env:
           ARCNET_STANDARD_SECRETS_KEY: ${{ secrets.ARCNET_STANDARD_SECRETS_KEY }}
