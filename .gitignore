@@ -11,5 +11,4 @@ AGENTS_WORKTREE.md
 tmp/
 
 # Agent files are compiled from agents-md/index.md via `zap t compile-agents`; not committed.
-.fssstack-release-result.json
 **/.pnpm-store/
